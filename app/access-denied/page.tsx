@@ -4,8 +4,9 @@ export default function AccessDeniedPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Access denied</h1>
         <p className="mt-2 max-w-md text-zinc-500">
-          Your Discord account isn&apos;t on the committee allowlist. If you
-          think this is a mistake, ask a committee admin to add you.
+          Your Discord account doesn&apos;t have a committee role in the club
+          server. If you think this is a mistake, ask a committee member to
+          check your Discord roles.
         </p>
       </div>
       <form action="/auth/signout" method="post">

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { syncDiscordRoles } from "@/lib/auth";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error && data.user) {
-      await linkAllowlistRow(data.user);
+      await syncFromDiscord(data.user);
       return NextResponse.redirect(`${origin}/`);
     }
   }
@@ -19,20 +19,10 @@ export async function GET(request: Request) {
   return NextResponse.redirect(`${origin}/login?error=auth`);
 }
 
-// First sign-in: attach the auth account to the pre-created allowlist row
-// matching their Discord ID. No matching row means they stay unlinked and
-// hit the access-denied gate.
-async function linkAllowlistRow(user: User) {
+// Upsert the app user from their Discord guild roles. Users with no mapped
+// roles still get a row (empty roles) and hit the access-denied gate.
+async function syncFromDiscord(user: User) {
   const discordId = user.identities?.find((i) => i.provider === "discord")?.id;
   if (!discordId) return;
-
-  const admin = createAdminClient();
-  await admin
-    .from("app_users")
-    .update({
-      auth_user_id: user.id,
-      discord_username: user.user_metadata?.name ?? "",
-    })
-    .eq("discord_id", discordId)
-    .is("auth_user_id", null);
+  await syncDiscordRoles(user.id, discordId);
 }
