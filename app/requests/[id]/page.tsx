@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { requireAppUser, hasRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { formatAUD, STATUS_LABELS } from "@/lib/format";
+import { formatAUD, formatBSB, STATUS_LABELS } from "@/lib/format";
 import type { RequestStatus } from "@/lib/types";
 import { Nav } from "@/components/nav";
 import { StatusBadge } from "@/components/status-badge";
@@ -75,6 +75,14 @@ export default async function RequestPage({
     .order("created_at", { ascending: true });
   const history = (historyData ?? []) as unknown as HistoryRow[];
 
+  // Payout details: RLS only returns this row to the submitter and
+  // payment managers, and it is deleted once the request is reimbursed.
+  const { data: bank } = await supabase
+    .from("request_bank_details")
+    .select("bsb, account_number")
+    .eq("request_id", id)
+    .maybeSingle();
+
   // Receipt is behind a short-lived signed URL; anyone who can see the
   // request row is allowed to see its receipt.
   let receiptUrl: string | null = null;
@@ -143,6 +151,15 @@ export default async function RequestPage({
             </dd>
           </div>
         </dl>
+
+        {bank && (
+          <p className="mt-3 rounded-lg border border-zinc-200 p-4 text-sm dark:border-zinc-800">
+            <span className="text-zinc-500">Reimburse via EFT: </span>
+            <span className="font-medium">
+              BSB {formatBSB(bank.bsb)} · Account {bank.account_number}
+            </span>
+          </p>
+        )}
 
         {/* Role- and status-appropriate actions */}
         <section className="mt-6 flex flex-col gap-4">
@@ -287,7 +304,7 @@ export default async function RequestPage({
                     defaultValue={request.description}
                     className={inputClass}
                   />
-                  <div className="flex items-end gap-3">
+                  <div className="flex flex-wrap items-end gap-3">
                     <label className="flex flex-col gap-1 text-sm font-medium">
                       Estimated amount (AUD)
                       <input
@@ -297,6 +314,28 @@ export default async function RequestPage({
                         min="0.01"
                         required
                         defaultValue={request.amount_estimated}
+                        className={inputClass}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-sm font-medium">
+                      BSB
+                      <input
+                        name="bsb"
+                        required
+                        inputMode="numeric"
+                        pattern="\d{3}-?\d{3}"
+                        defaultValue={bank?.bsb ?? ""}
+                        className={inputClass}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-sm font-medium">
+                      Account number
+                      <input
+                        name="account_number"
+                        required
+                        inputMode="numeric"
+                        pattern="\d{4,10}"
+                        defaultValue={bank?.account_number ?? ""}
                         className={inputClass}
                       />
                     </label>

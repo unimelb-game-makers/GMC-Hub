@@ -17,8 +17,11 @@ const headers = { apikey: key, Authorization: `Bearer ${key}` };
 const api = (path, init = {}) =>
   fetch(`${url}${path}`, { ...init, headers: { ...headers, ...init.headers } });
 
-for (const table of ["status_history", "requests", "events", "app_users"]) {
-  const res = await api(`/rest/v1/${table}?id=not.is.null`, { method: "DELETE" });
+for (const table of ["status_history", "request_bank_details", "requests", "events", "bank_details", "app_users"]) {
+  const pk = table.endsWith("bank_details")
+    ? table === "bank_details" ? "app_user_id" : "request_id"
+    : "id";
+  const res = await api(`/rest/v1/${table}?${pk}=not.is.null`, { method: "DELETE" });
   console.log(`${table}: ${res.ok ? "cleared" : `FAILED (${res.status})`}`);
 }
 

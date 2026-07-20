@@ -7,6 +7,10 @@ export function formatAUD(amount: number): string {
   }).format(amount);
 }
 
+export function formatBSB(bsb: string): string {
+  return `${bsb.slice(0, 3)}-${bsb.slice(3)}`;
+}
+
 export const STATUS_LABELS: Record<RequestStatus, string> = {
   pending_approval: "Pending approval",
   approved: "Approved to pay",

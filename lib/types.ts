@@ -33,6 +33,14 @@ export interface AppUser {
   createdAt: string;
 }
 
+// EFT payout details (AU bank transfer only). Saved per user for prefill
+// and snapshotted per request; deleted once reimbursed, and the saved copy
+// is deleted when a role sync finds the user holds no committee role.
+export interface BankDetails {
+  bsb: string;
+  accountNumber: string;
+}
+
 export interface Event {
   id: string;
   title: string;

@@ -22,22 +22,33 @@ const ROLE_SYNC_TTL_MS = 10 * 60 * 1000;
 
 // Fetch current guild roles for a Discord user and upsert their app row.
 // Not in the guild (or bot failure treated as unknown) -> roles cleared.
+// Users who end up with no roles have their saved bank details deleted:
+// people who leave the committee should not keep payout data in the app.
 export async function syncDiscordRoles(authUserId: string, discordId: string) {
   const member = await fetchGuildMember(discordId);
+  const roles = member ? mapDiscordRoles(member.roleIds) : [];
   const admin = createAdminClient();
-  await admin.from("app_users").upsert(
-    {
-      discord_id: discordId,
-      auth_user_id: authUserId,
-      roles: member ? mapDiscordRoles(member.roleIds) : [],
-      roles_synced_at: new Date().toISOString(),
-      ...(member && {
-        discord_username: member.username,
-        display_name: member.displayName || member.username,
-      }),
-    },
-    { onConflict: "discord_id" }
-  );
+  const { data } = await admin
+    .from("app_users")
+    .upsert(
+      {
+        discord_id: discordId,
+        auth_user_id: authUserId,
+        roles,
+        roles_synced_at: new Date().toISOString(),
+        ...(member && {
+          discord_username: member.username,
+          display_name: member.displayName || member.username,
+        }),
+      },
+      { onConflict: "discord_id" }
+    )
+    .select("id")
+    .single();
+
+  if (roles.length === 0 && data) {
+    await admin.from("bank_details").delete().eq("app_user_id", data.id);
+  }
 }
 
 // Returns the signed-in user's app row (roles freshly synced if stale),

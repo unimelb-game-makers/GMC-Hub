@@ -74,6 +74,17 @@ function parseAmount(value: FormDataEntryValue | null): number {
   return Math.round(amount * 100) / 100;
 }
 
+// EFT only: BSB and account number, digits normalised (spaces/dashes ok).
+function parseBankDetails(formData: FormData) {
+  const bsb = String(formData.get("bsb") ?? "").replace(/\D/g, "");
+  const account = String(formData.get("account_number") ?? "").replace(/\D/g, "");
+  if (!/^\d{6}$/.test(bsb)) throw new Error("BSB must be 6 digits");
+  if (!/^\d{4,10}$/.test(account)) {
+    throw new Error("Account number must be 4 to 10 digits");
+  }
+  return { bsb, account_number: account };
+}
+
 export async function createRequest(formData: FormData) {
   const user = await requireAppUser();
   if (!hasRole(user, "member")) throw new Error("Not allowed");
@@ -82,6 +93,7 @@ export async function createRequest(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const category = String(formData.get("category") ?? "") as Category;
   const amount = parseAmount(formData.get("amount_estimated"));
+  const bank = parseBankDetails(formData);
   if (!title) throw new Error("Title is required");
   if (!CATEGORIES.includes(category)) throw new Error("Invalid category");
 
@@ -106,6 +118,17 @@ export async function createRequest(formData: FormData) {
     .select("id")
     .single();
   if (error) throw new Error(error.message);
+
+  // Snapshot payout details on the request; optionally save for next time.
+  const { error: bankError } = await admin
+    .from("request_bank_details")
+    .insert({ request_id: request.id, ...bank });
+  if (bankError) throw new Error(bankError.message);
+  if (formData.get("save_bank_details")) {
+    await admin
+      .from("bank_details")
+      .upsert({ app_user_id: user.id, ...bank }, { onConflict: "app_user_id" });
+  }
 
   await admin.from("status_history").insert({
     request_id: request.id,
@@ -215,6 +238,13 @@ export async function confirmReimbursed(requestId: string, formData: FormData) {
 
   const note = String(formData.get("note") ?? "").trim() || null;
   await transition(request, user, "reimbursed", {}, note, new Date().toISOString());
+
+  // Payout done: the bank snapshot has served its purpose, drop it.
+  await createAdminClient()
+    .from("request_bank_details")
+    .delete()
+    .eq("request_id", request.id);
+
   await sendDirectMessage(
     request.submitter.discord_id,
     `You've been reimbursed ${formatAUD(request.amount_claimed ?? 0)} for **${request.title}**. 🎉`
@@ -234,12 +264,17 @@ export async function resubmitSpend(requestId: string, formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   if (!title) throw new Error("Title is required");
   const amount = parseAmount(formData.get("amount_estimated"));
+  const bank = parseBankDetails(formData);
 
   await transition(request, user, "pending_approval", {
     title,
     description: String(formData.get("description") ?? "").trim(),
     amount_estimated: amount,
   });
+
+  await createAdminClient()
+    .from("request_bank_details")
+    .upsert({ request_id: request.id, ...bank }, { onConflict: "request_id" });
 
   await sendChannelMessage(
     `${committeeMention()} **${user.display_name}** resubmitted spend request ` +
