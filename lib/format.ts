@@ -1,4 +1,4 @@
-import type { RequestStatus } from "@/lib/types";
+import type { BankDetails, Category, RequestStatus } from "@/lib/types";
 
 export function formatAUD(amount: number): string {
   return new Intl.NumberFormat("en-AU", {
@@ -10,6 +10,21 @@ export function formatAUD(amount: number): string {
 export function formatBSB(bsb: string): string {
   return `${bsb.slice(0, 3)}-${bsb.slice(3)}`;
 }
+
+export function formatBankDetails(bank: BankDetails): string {
+  return bank.paymentMethod === "payid"
+    ? `PayID ${bank.payid}`
+    : `BSB ${formatBSB(bank.bsb!)} · Account ${bank.accountNumber}`;
+}
+
+// "food" is stored in the DB (enum value unchanged); F&B is just the label.
+export const CATEGORY_LABELS: Record<Category, string> = {
+  food: "F&B",
+  equipment: "Equipment",
+  venue: "Venue",
+  printing: "Printing",
+  other: "Other",
+};
 
 export const STATUS_LABELS: Record<RequestStatus, string> = {
   pending_approval: "Pending approval",

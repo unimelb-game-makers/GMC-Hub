@@ -74,15 +74,36 @@ function parseAmount(value: FormDataEntryValue | null): number {
   return Math.round(amount * 100) / 100;
 }
 
-// EFT only: BSB and account number, digits normalised (spaces/dashes ok).
+// One of two payout methods: PayID, or BSB + account number (digits
+// normalised, spaces/dashes ok). Exactly one method's fields are stored,
+// matching the DB check constraint.
 function parseBankDetails(formData: FormData) {
-  const bsb = String(formData.get("bsb") ?? "").replace(/\D/g, "");
-  const account = String(formData.get("account_number") ?? "").replace(/\D/g, "");
-  if (!/^\d{6}$/.test(bsb)) throw new Error("BSB must be 6 digits");
-  if (!/^\d{4,10}$/.test(account)) {
-    throw new Error("Account number must be 4 to 10 digits");
+  const method = String(formData.get("payment_method") ?? "");
+  if (method === "payid") {
+    const payid = String(formData.get("payid") ?? "").trim();
+    if (!payid) throw new Error("PayID is required");
+    return {
+      payment_method: "payid" as const,
+      payid,
+      bsb: null,
+      account_number: null,
+    };
   }
-  return { bsb, account_number: account };
+  if (method === "bank_transfer") {
+    const bsb = String(formData.get("bsb") ?? "").replace(/\D/g, "");
+    const account = String(formData.get("account_number") ?? "").replace(/\D/g, "");
+    if (!/^\d{6}$/.test(bsb)) throw new Error("BSB must be 6 digits");
+    if (!/^\d{4,10}$/.test(account)) {
+      throw new Error("Account number must be 4 to 10 digits");
+    }
+    return {
+      payment_method: "bank_transfer" as const,
+      payid: null,
+      bsb,
+      account_number: account,
+    };
+  }
+  throw new Error("Select a payment method");
 }
 
 export async function createRequest(formData: FormData) {

@@ -2,10 +2,16 @@ import { notFound } from "next/navigation";
 import { requireAppUser, hasRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { formatAUD, formatBSB, STATUS_LABELS } from "@/lib/format";
-import type { RequestStatus } from "@/lib/types";
+import {
+  formatAUD,
+  formatBankDetails,
+  CATEGORY_LABELS,
+  STATUS_LABELS,
+} from "@/lib/format";
+import type { BankDetails, Category, RequestStatus } from "@/lib/types";
 import { Nav } from "@/components/nav";
 import { StatusBadge } from "@/components/status-badge";
+import { PaymentMethodFields } from "@/components/payment-method-fields";
 import {
   approveSpend,
   rejectRequest,
@@ -23,7 +29,7 @@ interface RequestDetail {
   description: string;
   amount_estimated: number;
   amount_claimed: number | null;
-  category: string;
+  category: Category;
   receipt_path: string | null;
   status: RequestStatus;
   created_at: string;
@@ -80,7 +86,7 @@ export default async function RequestPage({
   // payment managers, and it is deleted once the request is reimbursed.
   const { data: bank } = await supabase
     .from("request_bank_details")
-    .select("bsb, account_number")
+    .select("payment_method, payid, bsb, account_number")
     .eq("request_id", id)
     .maybeSingle();
 
@@ -113,7 +119,7 @@ export default async function RequestPage({
         </div>
         <p className="mt-1 text-sm text-ink-soft">
           {request.submitter?.display_name} · {request.event?.title} ·{" "}
-          <span className="capitalize">{request.category}</span>
+          {CATEGORY_LABELS[request.category]}
         </p>
         {request.description && (
           <p className="mt-3 text-sm">{request.description}</p>
@@ -155,9 +161,14 @@ export default async function RequestPage({
 
         {bank && (
           <p className={`mt-3 text-sm ${cardClass}`}>
-            <span className="text-ink-soft">Reimburse via EFT: </span>
+            <span className="text-ink-soft">Reimburse via: </span>
             <span className="font-mono font-medium">
-              BSB {formatBSB(bank.bsb)} · Account {bank.account_number}
+              {formatBankDetails({
+                paymentMethod: bank.payment_method,
+                payid: bank.payid,
+                bsb: bank.bsb,
+                accountNumber: bank.account_number,
+              } as BankDetails)}
             </span>
           </p>
         )}
@@ -305,45 +316,31 @@ export default async function RequestPage({
                     defaultValue={request.description}
                     className={inputClass}
                   />
-                  <div className="flex flex-wrap items-end gap-3">
-                    <label className="flex flex-col gap-1 text-sm font-medium">
-                      Estimated amount (AUD)
-                      <input
-                        name="amount_estimated"
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        required
-                        defaultValue={request.amount_estimated}
-                        className={inputClass}
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm font-medium">
-                      BSB
-                      <input
-                        name="bsb"
-                        required
-                        inputMode="numeric"
-                        pattern="\d{3}-?\d{3}"
-                        defaultValue={bank?.bsb ?? ""}
-                        className={inputClass}
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm font-medium">
-                      Account number
-                      <input
-                        name="account_number"
-                        required
-                        inputMode="numeric"
-                        pattern="\d{4,10}"
-                        defaultValue={bank?.account_number ?? ""}
-                        className={inputClass}
-                      />
-                    </label>
-                    <button type="submit" className={primaryButton}>
-                      Resubmit
-                    </button>
-                  </div>
+                  <label className="flex max-w-xs flex-col gap-1 text-sm font-medium">
+                    Estimated amount (AUD)
+                    <input
+                      name="amount_estimated"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      defaultValue={request.amount_estimated}
+                      className={inputClass}
+                    />
+                  </label>
+                  <PaymentMethodFields
+                    defaultMethod={bank?.payment_method ?? "bank_transfer"}
+                    defaultPayid={bank?.payid ?? ""}
+                    defaultBsb={bank?.bsb ?? ""}
+                    defaultAccountNumber={bank?.account_number ?? ""}
+                    fieldBg="bg-bg"
+                  />
+                  <button
+                    type="submit"
+                    className={`${primaryButton} self-start`}
+                  >
+                    Resubmit
+                  </button>
                 </div>
               </form>
             )}

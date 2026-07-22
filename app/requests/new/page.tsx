@@ -2,7 +2,9 @@ import Link from "next/link";
 import { requireAppUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { CATEGORIES } from "@/lib/types";
+import { CATEGORY_LABELS } from "@/lib/format";
 import { Nav } from "@/components/nav";
+import { PaymentMethodFields } from "@/components/payment-method-fields";
 import { createRequest } from "../actions";
 
 const inputClass =
@@ -20,7 +22,7 @@ export default async function NewRequestPage() {
   // Saved payout details for prefill (RLS: own row only).
   const { data: savedBank } = await supabase
     .from("bank_details")
-    .select("bsb, account_number")
+    .select("payment_method, payid, bsb, account_number")
     .maybeSingle();
 
   return (
@@ -88,59 +90,23 @@ export default async function NewRequestPage() {
               </label>
               <label className="flex flex-1 flex-col gap-1 text-sm font-medium">
                 Category
-                <select name="category" required className={`${inputClass} capitalize`}>
+                <select name="category" required className={inputClass}>
                   {CATEGORIES.map((c) => (
-                    <option key={c} value={c} className="capitalize">
-                      {c}
+                    <option key={c} value={c}>
+                      {CATEGORY_LABELS[c]}
                     </option>
                   ))}
                 </select>
               </label>
             </div>
-            <fieldset className="mt-1 rounded-lg border border-line bg-surface p-4">
-              <legend className="px-1 text-sm font-medium">
-                Reimbursement account (EFT)
-              </legend>
-              <p className="text-sm text-ink-soft">
-                Where we&apos;ll send the money once your claim is approved.
-                Only you and the payment manager can see this.
-              </p>
-              <div className="mt-3 flex gap-3">
-                <label className="flex flex-col gap-1 text-sm font-medium">
-                  BSB
-                  <input
-                    name="bsb"
-                    required
-                    inputMode="numeric"
-                    pattern="\d{3}-?\d{3}"
-                    placeholder="e.g. 063-000"
-                    defaultValue={savedBank?.bsb ?? ""}
-                    className={`${inputClass} font-mono`}
-                  />
-                </label>
-                <label className="flex flex-1 flex-col gap-1 text-sm font-medium">
-                  Account number
-                  <input
-                    name="account_number"
-                    required
-                    inputMode="numeric"
-                    pattern="\d{4,10}"
-                    placeholder="4 to 10 digits"
-                    defaultValue={savedBank?.account_number ?? ""}
-                    className={`${inputClass} font-mono`}
-                  />
-                </label>
-              </div>
-              <label className="mt-3 flex items-center gap-2 text-sm text-ink-soft">
-                <input
-                  type="checkbox"
-                  name="save_bank_details"
-                  defaultChecked={!!savedBank}
-                  className="accent-accent"
-                />
-                Save these details for next time
-              </label>
-            </fieldset>
+            <PaymentMethodFields
+              defaultMethod={savedBank?.payment_method ?? "bank_transfer"}
+              defaultPayid={savedBank?.payid ?? ""}
+              defaultBsb={savedBank?.bsb ?? ""}
+              defaultAccountNumber={savedBank?.account_number ?? ""}
+              showSaveCheckbox
+              defaultSave={!!savedBank}
+            />
             <button
               type="submit"
               className="mt-1 self-start rounded-md bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover"
