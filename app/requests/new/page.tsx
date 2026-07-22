@@ -5,6 +5,9 @@ import { CATEGORIES } from "@/lib/types";
 import { Nav } from "@/components/nav";
 import { createRequest } from "../actions";
 
+const inputClass =
+  "rounded-md border border-line bg-surface px-3 py-2 text-sm font-normal placeholder:text-ink-soft/60";
+
 export default async function NewRequestPage() {
   const user = await requireAppUser();
   const supabase = await createClient();
@@ -23,29 +26,29 @@ export default async function NewRequestPage() {
   return (
     <>
       <Nav user={user} />
-      <main className="mx-auto w-full max-w-3xl flex-1 p-4 sm:p-6">
-        <h1 className="text-xl font-semibold tracking-tight">
+      <main className="mx-auto w-full max-w-2xl flex-1 p-4 sm:p-6">
+        <h1 className="font-display text-xl font-semibold tracking-tight">
           New spend request
         </h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-ink-soft">
           Ask for approval before you spend. Submit your claim with the receipt
           after you&apos;ve paid.
         </p>
 
         {!events?.length ? (
-          <p className="mt-6 rounded-lg border border-zinc-200 p-4 text-sm text-zinc-500 dark:border-zinc-800">
+          <p className="mt-6 rounded-lg border border-line bg-surface p-4 text-sm text-ink-soft">
             There are no open events to request under. Ask a payment manager to
-            create one on the <Link href="/events" className="underline">events page</Link>.
+            create one on the{" "}
+            <Link href="/events" className="text-accent underline underline-offset-2">
+              events page
+            </Link>
+            .
           </p>
         ) : (
           <form action={createRequest} className="mt-4 flex flex-col gap-3">
             <label className="flex flex-col gap-1 text-sm font-medium">
               Event
-              <select
-                name="event_id"
-                required
-                className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-normal dark:border-zinc-700 dark:bg-zinc-900"
-              >
+              <select name="event_id" required className={inputClass}>
                 {events.map((event) => (
                   <option key={event.id} value={event.id}>
                     {event.title}
@@ -59,7 +62,7 @@ export default async function NewRequestPage() {
                 name="title"
                 required
                 placeholder="e.g. Pizza for game jam"
-                className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-normal dark:border-zinc-700 dark:bg-zinc-900"
+                className={inputClass}
               />
             </label>
             <label className="flex flex-col gap-1 text-sm font-medium">
@@ -68,7 +71,7 @@ export default async function NewRequestPage() {
                 name="description"
                 rows={3}
                 placeholder="Anything the execs should know (optional)"
-                className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-normal dark:border-zinc-700 dark:bg-zinc-900"
+                className={inputClass}
               />
             </label>
             <div className="flex gap-3">
@@ -80,16 +83,12 @@ export default async function NewRequestPage() {
                   step="0.01"
                   min="0.01"
                   required
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-normal dark:border-zinc-700 dark:bg-zinc-900"
+                  className={`${inputClass} font-mono`}
                 />
               </label>
               <label className="flex flex-1 flex-col gap-1 text-sm font-medium">
                 Category
-                <select
-                  name="category"
-                  required
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-normal capitalize dark:border-zinc-700 dark:bg-zinc-900"
-                >
+                <select name="category" required className={`${inputClass} capitalize`}>
                   {CATEGORIES.map((c) => (
                     <option key={c} value={c} className="capitalize">
                       {c}
@@ -98,11 +97,11 @@ export default async function NewRequestPage() {
                 </select>
               </label>
             </div>
-            <fieldset className="mt-1 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+            <fieldset className="mt-1 rounded-lg border border-line bg-surface p-4">
               <legend className="px-1 text-sm font-medium">
                 Reimbursement account (EFT)
               </legend>
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-ink-soft">
                 Where we&apos;ll send the money once your claim is approved.
                 Only you and the payment manager can see this.
               </p>
@@ -116,7 +115,7 @@ export default async function NewRequestPage() {
                     pattern="\d{3}-?\d{3}"
                     placeholder="e.g. 063-000"
                     defaultValue={savedBank?.bsb ?? ""}
-                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-normal dark:border-zinc-700 dark:bg-zinc-900"
+                    className={`${inputClass} font-mono`}
                   />
                 </label>
                 <label className="flex flex-1 flex-col gap-1 text-sm font-medium">
@@ -128,22 +127,23 @@ export default async function NewRequestPage() {
                     pattern="\d{4,10}"
                     placeholder="4 to 10 digits"
                     defaultValue={savedBank?.account_number ?? ""}
-                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-normal dark:border-zinc-700 dark:bg-zinc-900"
+                    className={`${inputClass} font-mono`}
                   />
                 </label>
               </div>
-              <label className="mt-3 flex items-center gap-2 text-sm">
+              <label className="mt-3 flex items-center gap-2 text-sm text-ink-soft">
                 <input
                   type="checkbox"
                   name="save_bank_details"
                   defaultChecked={!!savedBank}
+                  className="accent-accent"
                 />
                 Save these details for next time
               </label>
             </fieldset>
             <button
               type="submit"
-              className="mt-1 self-start rounded-md bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+              className="mt-1 self-start rounded-md bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover"
             >
               Submit request
             </button>

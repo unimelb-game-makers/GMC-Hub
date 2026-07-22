@@ -139,7 +139,7 @@ export async function createRequest(formData: FormData) {
 
   await sendChannelMessage(
     `${committeeMention()} New spend request from **${user.display_name}**: ` +
-      `**${title}** (${formatAUD(amount)}) under *${event.title}* — needs exec approval.`
+      `**${title}** (${formatAUD(amount)}) under *${event.title}*, needs exec approval.`
   );
 
   revalidatePath("/");
@@ -211,7 +211,7 @@ export async function submitClaim(requestId: string, formData: FormData) {
 
   await sendChannelMessage(
     `${committeeMention()} **${user.display_name}** submitted a claim for ` +
-      `**${request.title}** (${formatAUD(amount)}) — needs exec approval.`
+      `**${request.title}** (${formatAUD(amount)}), needs exec approval.`
   );
 }
 
@@ -225,7 +225,7 @@ export async function approveClaim(requestId: string) {
   await transition(request, user, "claim_approved");
   await sendChannelMessage(
     `${paymentManagerMention()} Claim approved for **${request.title}** ` +
-      `(${formatAUD(request.amount_claimed ?? 0)}, ${request.submitter.display_name}) — ready to reimburse.`
+      `(${formatAUD(request.amount_claimed ?? 0)}, ${request.submitter.display_name}), ready to reimburse.`
   );
 }
 
@@ -278,7 +278,7 @@ export async function resubmitSpend(requestId: string, formData: FormData) {
 
   await sendChannelMessage(
     `${committeeMention()} **${user.display_name}** resubmitted spend request ` +
-      `**${title}** (${formatAUD(amount)}) — needs exec approval.`
+      `**${title}** (${formatAUD(amount)}), needs exec approval.`
   );
 }
 
@@ -308,6 +308,6 @@ export async function resubmitClaim(requestId: string, formData: FormData) {
   await transition(request, user, "claim_submitted", fields);
   await sendChannelMessage(
     `${committeeMention()} **${user.display_name}** resubmitted their claim for ` +
-      `**${request.title}** (${formatAUD(amount)}) — needs exec approval.`
+      `**${request.title}** (${formatAUD(amount)}), needs exec approval.`
   );
 }

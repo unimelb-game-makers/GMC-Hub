@@ -38,7 +38,7 @@ export async function fetchGuildMember(
   };
 }
 
-// Notification failures are swallowed — a missed ping must never block a
+// Notification failures are swallowed, a missed ping must never block a
 // status transition.
 export async function sendChannelMessage(content: string) {
   try {

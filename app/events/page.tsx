@@ -27,33 +27,35 @@ export default async function EventsPage() {
   return (
     <>
       <Nav user={user} />
-      <main className="mx-auto w-full max-w-3xl flex-1 p-4 sm:p-6">
-        <h1 className="text-xl font-semibold tracking-tight">Events</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+      <main className="mx-auto w-full max-w-5xl flex-1 p-4 sm:p-6">
+        <h1 className="font-display text-xl font-semibold tracking-tight">
+          Events
+        </h1>
+        <p className="mt-1 text-sm text-ink-soft">
           Spend requests are made under an open event.
         </p>
 
         {isPaymentManager && (
           <form
             action={createEvent}
-            className="mt-4 flex flex-col gap-2 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+            className="mt-4 flex max-w-lg flex-col gap-2 rounded-lg border border-line bg-surface p-4"
           >
             <h2 className="text-sm font-medium">New event</h2>
             <input
               name="title"
               required
               placeholder="Event title"
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-line bg-bg px-3 py-2 text-sm placeholder:text-ink-soft/60"
             />
             <textarea
               name="description"
               rows={2}
               placeholder="Description (optional)"
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-line bg-bg px-3 py-2 text-sm placeholder:text-ink-soft/60"
             />
             <button
               type="submit"
-              className="self-start rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+              className="self-start rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover"
             >
               Create event
             </button>
@@ -64,7 +66,7 @@ export default async function EventsPage() {
           {events.map((event) => (
             <li
               key={event.id}
-              className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+              className="rounded-lg border border-line bg-surface p-4"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -72,18 +74,18 @@ export default async function EventsPage() {
                   <span
                     className={`ml-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
                       event.is_open
-                        ? "bg-green-100 text-green-800"
-                        : "bg-zinc-200 text-zinc-600"
+                        ? "bg-[#26402f] text-[#8fd6ac]"
+                        : "bg-line text-ink-soft"
                     }`}
                   >
                     {event.is_open ? "Open" : "Closed"}
                   </span>
                   {event.description && (
-                    <p className="mt-1 text-sm text-zinc-500">
+                    <p className="mt-1 text-sm text-ink-soft">
                       {event.description}
                     </p>
                   )}
-                  <p className="mt-1 text-xs text-zinc-400">
+                  <p className="mt-1 text-xs text-ink-soft/70">
                     Created by {event.creator?.display_name ?? "unknown"}
                   </p>
                 </div>
@@ -93,7 +95,7 @@ export default async function EventsPage() {
                   >
                     <button
                       type="submit"
-                      className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+                      className="rounded-md border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:bg-bg"
                     >
                       {event.is_open ? "Close" : "Reopen"}
                     </button>
@@ -103,7 +105,7 @@ export default async function EventsPage() {
             </li>
           ))}
           {events.length === 0 && (
-            <li className="py-8 text-center text-sm text-zinc-400">
+            <li className="py-8 text-center text-sm text-ink-soft/70">
               No events yet.
               {isPaymentManager
                 ? " Create one above."
