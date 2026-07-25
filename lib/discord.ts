@@ -84,10 +84,17 @@ export async function sendDirectMessage(discordId: string, content: string) {
   } catch {}
 }
 
+// A space right after "@" breaks Discord's mention syntax entirely, so the
+// role name never actually pings, regardless of allowed_mentions handling.
+// Revert to the real `<@&ID>` form once testing is done.
 export const committeeMention = () =>
-  `<@&${process.env.DISCORD_COMMITTEE_ROLE_ID}>`;
+  MENTIONS_ENABLED
+    ? `<@&${process.env.DISCORD_COMMITTEE_ROLE_ID}>`
+    : `<@ &${process.env.DISCORD_COMMITTEE_ROLE_ID}>`;
 export const paymentManagerMention = () =>
-  `<@&${process.env.DISCORD_PAYMENT_MANAGER_ROLE_ID}>`;
+  MENTIONS_ENABLED
+    ? `<@&${process.env.DISCORD_PAYMENT_MANAGER_ROLE_ID}>`
+    : `<@ &${process.env.DISCORD_PAYMENT_MANAGER_ROLE_ID}>`;
 
 // subcommittee/committee -> member, committee -> exec, plus payment_manager.
 export function mapDiscordRoles(roleIds: string[]): Role[] {
