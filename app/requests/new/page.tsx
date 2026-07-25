@@ -2,8 +2,13 @@ import Link from "next/link";
 import { requireAppUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { CATEGORIES } from "@/lib/types";
+import { CATEGORY_LABELS } from "@/lib/format";
 import { Nav } from "@/components/nav";
+import { PaymentMethodFields } from "@/components/payment-method-fields";
 import { createRequest } from "../actions";
+
+const inputClass =
+  "rounded-md border border-line bg-surface px-3 py-2 text-sm font-normal placeholder:text-ink-soft/60";
 
 export default async function NewRequestPage() {
   const user = await requireAppUser();
@@ -14,32 +19,38 @@ export default async function NewRequestPage() {
     .eq("is_open", true)
     .order("created_at", { ascending: false });
 
+  // Saved payout details for prefill (RLS: own row only).
+  const { data: savedBank } = await supabase
+    .from("bank_details")
+    .select("payment_method, payid, bsb, account_number")
+    .maybeSingle();
+
   return (
     <>
       <Nav user={user} />
-      <main className="mx-auto w-full max-w-3xl flex-1 p-4 sm:p-6">
-        <h1 className="text-xl font-semibold tracking-tight">
+      <main className="mx-auto w-full max-w-2xl flex-1 p-4 sm:p-6">
+        <h1 className="font-display text-xl font-semibold tracking-tight">
           New spend request
         </h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-ink-soft">
           Ask for approval before you spend. Submit your claim with the receipt
           after you&apos;ve paid.
         </p>
 
         {!events?.length ? (
-          <p className="mt-6 rounded-lg border border-zinc-200 p-4 text-sm text-zinc-500 dark:border-zinc-800">
+          <p className="mt-6 rounded-lg border border-line bg-surface p-4 text-sm text-ink-soft">
             There are no open events to request under. Ask a payment manager to
-            create one on the <Link href="/events" className="underline">events page</Link>.
+            create one on the{" "}
+            <Link href="/events" className="text-accent underline underline-offset-2">
+              events page
+            </Link>
+            .
           </p>
         ) : (
           <form action={createRequest} className="mt-4 flex flex-col gap-3">
             <label className="flex flex-col gap-1 text-sm font-medium">
               Event
-              <select
-                name="event_id"
-                required
-                className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-normal dark:border-zinc-700 dark:bg-zinc-900"
-              >
+              <select name="event_id" required className={inputClass}>
                 {events.map((event) => (
                   <option key={event.id} value={event.id}>
                     {event.title}
@@ -53,7 +64,7 @@ export default async function NewRequestPage() {
                 name="title"
                 required
                 placeholder="e.g. Pizza for game jam"
-                className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-normal dark:border-zinc-700 dark:bg-zinc-900"
+                className={inputClass}
               />
             </label>
             <label className="flex flex-col gap-1 text-sm font-medium">
@@ -62,7 +73,7 @@ export default async function NewRequestPage() {
                 name="description"
                 rows={3}
                 placeholder="Anything the execs should know (optional)"
-                className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-normal dark:border-zinc-700 dark:bg-zinc-900"
+                className={inputClass}
               />
             </label>
             <div className="flex gap-3">
@@ -74,27 +85,31 @@ export default async function NewRequestPage() {
                   step="0.01"
                   min="0.01"
                   required
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-normal dark:border-zinc-700 dark:bg-zinc-900"
+                  className={`${inputClass} font-mono`}
                 />
               </label>
               <label className="flex flex-1 flex-col gap-1 text-sm font-medium">
                 Category
-                <select
-                  name="category"
-                  required
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-normal capitalize dark:border-zinc-700 dark:bg-zinc-900"
-                >
+                <select name="category" required className={inputClass}>
                   {CATEGORIES.map((c) => (
-                    <option key={c} value={c} className="capitalize">
-                      {c}
+                    <option key={c} value={c}>
+                      {CATEGORY_LABELS[c]}
                     </option>
                   ))}
                 </select>
               </label>
             </div>
+            <PaymentMethodFields
+              defaultMethod={savedBank?.payment_method ?? "bank_transfer"}
+              defaultPayid={savedBank?.payid ?? ""}
+              defaultBsb={savedBank?.bsb ?? ""}
+              defaultAccountNumber={savedBank?.account_number ?? ""}
+              showSaveCheckbox
+              defaultSave={!!savedBank}
+            />
             <button
               type="submit"
-              className="mt-1 self-start rounded-md bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+              className="mt-1 self-start rounded-md bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover"
             >
               Submit request
             </button>

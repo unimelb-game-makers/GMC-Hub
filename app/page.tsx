@@ -25,14 +25,14 @@ function RequestList({ requests }: { requests: RequestListRow[] }) {
         <li key={r.id}>
           <Link
             href={`/requests/${r.id}`}
-            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-zinc-200 p-3 text-sm hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line bg-surface p-3 text-sm transition-colors hover:border-accent/40"
           >
             <span className="font-medium">{r.title}</span>
             <StatusBadge status={r.status} />
-            <span className="ml-auto text-zinc-500">
+            <span className="ml-auto font-mono text-ink-soft">
               {formatAUD(r.amount_claimed ?? r.amount_estimated)}
             </span>
-            <span className="w-full text-xs text-zinc-400">
+            <span className="w-full text-xs text-ink-soft">
               {r.submitter?.display_name} · {r.event?.title}
             </span>
           </Link>
@@ -79,36 +79,38 @@ export default async function Home() {
   return (
     <>
       <Nav user={user} />
-      <main className="mx-auto w-full max-w-3xl flex-1 p-4 sm:p-6">
+      <main className="mx-auto w-full max-w-5xl flex-1 p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
+          <h1 className="font-display text-xl font-semibold tracking-tight">
+            Dashboard
+          </h1>
           <Link
             href="/requests/new"
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover"
           >
             New spend request
           </Link>
         </div>
 
         <section className="mt-6">
-          <h2 className="text-sm font-medium text-zinc-500">
+          <h2 className="text-sm font-medium text-ink-soft">
             Needs your action
           </h2>
           {needsAction.length > 0 ? (
             <RequestList requests={needsAction} />
           ) : (
-            <p className="mt-2 text-sm text-zinc-400">
-              Nothing needs your action right now. 🎉
+            <p className="mt-2 text-sm text-ink-soft/70">
+              Nothing needs your action right now.
             </p>
           )}
         </section>
 
         <section className="mt-8">
-          <h2 className="text-sm font-medium text-zinc-500">Your requests</h2>
+          <h2 className="text-sm font-medium text-ink-soft">Your requests</h2>
           {mine.length > 0 ? (
             <RequestList requests={mine} />
           ) : (
-            <p className="mt-2 text-sm text-zinc-400">
+            <p className="mt-2 text-sm text-ink-soft/70">
               You haven&apos;t made any requests yet.
             </p>
           )}
@@ -116,11 +118,11 @@ export default async function Home() {
 
         {(hasRole(user, "exec") || hasRole(user, "payment_manager")) && (
           <section className="mt-8">
-            <h2 className="text-sm font-medium text-zinc-500">All requests</h2>
+            <h2 className="text-sm font-medium text-ink-soft">All requests</h2>
             {requests.length > 0 ? (
               <RequestList requests={requests} />
             ) : (
-              <p className="mt-2 text-sm text-zinc-400">No requests yet.</p>
+              <p className="mt-2 text-sm text-ink-soft/70">No requests yet.</p>
             )}
           </section>
         )}

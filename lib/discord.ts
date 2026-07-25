@@ -5,6 +5,10 @@ import type { Role } from "@/lib/types";
 
 const API = "https://discord.com/api/v10";
 
+// Local dev runs against real Discord roles (auth needs them) but must never
+// actually notify real people. Role sync (fetchGuildMember) is unaffected.
+const NOTIFICATIONS_ENABLED = process.env.DISCORD_NOTIFICATIONS_ENABLED !== "false";
+
 function botHeaders() {
   return {
     Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN!}`,
@@ -38,9 +42,10 @@ export async function fetchGuildMember(
   };
 }
 
-// Notification failures are swallowed — a missed ping must never block a
+// Notification failures are swallowed, a missed ping must never block a
 // status transition.
 export async function sendChannelMessage(content: string) {
+  if (!NOTIFICATIONS_ENABLED) return;
   try {
     await fetch(
       `${API}/channels/${process.env.DISCORD_NOTIFICATION_CHANNEL_ID}/messages`,
@@ -57,6 +62,7 @@ export async function sendChannelMessage(content: string) {
 }
 
 export async function sendDirectMessage(discordId: string, content: string) {
+  if (!NOTIFICATIONS_ENABLED) return;
   try {
     const res = await fetch(`${API}/users/@me/channels`, {
       method: "POST",

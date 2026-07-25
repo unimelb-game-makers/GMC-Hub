@@ -33,6 +33,20 @@ export interface AppUser {
   createdAt: string;
 }
 
+export const PAYMENT_METHODS = ["payid", "bank_transfer"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+// Payout details: PayID, or BSB + account number (AU bank transfer). Saved
+// per user for prefill and snapshotted per request; deleted once reimbursed,
+// and the saved copy is deleted when a role sync finds the user holds no
+// committee role. Exactly one method's fields are set, per the DB check.
+export interface BankDetails {
+  paymentMethod: PaymentMethod;
+  payid: string | null;
+  bsb: string | null;
+  accountNumber: string | null;
+}
+
 export interface Event {
   id: string;
   title: string;

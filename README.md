@@ -59,9 +59,25 @@ The club's Discord bot posts to the committee channel or DMs the submitter on ev
 
 ## Development
 
+Local dev runs against a local Supabase stack (Docker via the Supabase CLI), never the production project. This keeps local testing fully isolated from real committee data.
+
 ```bash
+brew install supabase/tap/supabase   # once
 npm install
-npm run dev 
+supabase init                        # once, scaffolds supabase/config.toml
+supabase start                       # boots local Postgres/Auth/Storage, prints local URL + keys
+supabase db reset                    # applies all migrations to the fresh local DB
+```
+
+Copy `.env.example` to `.env` and fill in:
+- The Supabase values from `supabase start`'s output (not the production project's).
+- Your Discord bot/guild/role IDs, same values as production, they describe the real Discord server.
+- `DISCORD_NOTIFICATIONS_ENABLED=false`, so local testing never pings the real channel or DMs a real committee member. Role sync still works normally with this set: only outgoing notifications are silenced.
+
+The Discord OAuth app needs the local callback URL (from `supabase start`'s output, typically `http://127.0.0.1:54321/auth/v1/callback`) added to its redirect URI list, and the local Supabase project's Auth settings need the Discord provider enabled with Site URL `http://localhost:3000`.
+
+```bash
+npm run dev
 ```
 
 Other scripts: `npm run build`, `npm run lint`.
@@ -69,5 +85,15 @@ Other scripts: `npm run build`, `npm run lint`.
 ### Wiping test data
 
 ```bash
-npm run wipe -- --yes
+supabase db reset
 ```
+
+Resets the local database to a clean slate with all migrations reapplied. `npm run wipe -- --yes` (see `scripts/wipe-test-data.mjs`) also exists for clearing a hosted project without a full reset, but should never be pointed at production once real committee data exists.
+
+## Deployment
+
+Hosted on Vercel, linked to this GitHub repo. Pushing to `main` deploys to production; every other branch and PR gets a Vercel Preview deployment, which has no database to talk to (there's no second hosted Supabase project) and isn't meant to be used for testing.
+
+Production env vars (Vercel Project Settings, Production environment only) point at the one hosted Supabase project and the real Discord bot/guild/role IDs, with `DISCORD_NOTIFICATIONS_ENABLED` left unset so it defaults to on.
+
+New migrations: test locally first (`supabase db reset` against the new file), then run the same SQL by hand against the production project via its SQL editor.
