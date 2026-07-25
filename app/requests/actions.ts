@@ -268,7 +268,7 @@ export async function confirmReimbursed(requestId: string, formData: FormData) {
 
   await sendDirectMessage(
     request.submitter.discord_id,
-    `You've been reimbursed ${formatAUD(request.amount_claimed ?? 0)} for **${request.title}**. 🎉`
+    `You've been reimbursed ${formatAUD(request.amount_claimed ?? 0)} for **${request.title}**.`
   );
 }
 

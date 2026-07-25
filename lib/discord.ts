@@ -9,6 +9,11 @@ const API = "https://discord.com/api/v10";
 // actually notify real people. Role sync (fetchGuildMember) is unaffected.
 const NOTIFICATIONS_ENABLED = process.env.DISCORD_NOTIFICATIONS_ENABLED !== "false";
 
+// While testing in production: channel messages still post and still show
+// the role name as text, but Discord won't actually ping the role's members.
+// Flip DISCORD_MENTIONS_ENABLED back to unset/"true" once testing is done.
+const MENTIONS_ENABLED = process.env.DISCORD_MENTIONS_ENABLED !== "false";
+
 function botHeaders() {
   return {
     Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN!}`,
@@ -54,7 +59,7 @@ export async function sendChannelMessage(content: string) {
         headers: botHeaders(),
         body: JSON.stringify({
           content,
-          allowed_mentions: { parse: ["roles"] },
+          allowed_mentions: { parse: MENTIONS_ENABLED ? ["roles"] : [] },
         }),
       }
     );
