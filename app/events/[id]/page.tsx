@@ -46,23 +46,24 @@ export default async function EventDetailPage({
   const user = await requireAppUser();
   const supabase = await createClient();
 
-  const { data } = await supabase
-    .from("events")
-    .select(
-      "id, title, description, is_open, created_at, closed_at, creator:app_users!events_created_by_fkey (display_name)"
-    )
-    .eq("id", id)
-    .maybeSingle();
+  const [{ data }, { data: requestData }] = await Promise.all([
+    supabase
+      .from("events")
+      .select(
+        "id, title, description, is_open, created_at, closed_at, creator:app_users!events_created_by_fkey (display_name)"
+      )
+      .eq("id", id)
+      .maybeSingle(),
+    supabase
+      .from("requests")
+      .select(
+        "id, title, category, amount_estimated, amount_claimed, status, created_at, submitter:app_users!requests_submitter_id_fkey (display_name)"
+      )
+      .eq("event_id", id)
+      .order("created_at", { ascending: true }),
+  ]);
   if (!data) notFound();
   const event = data as unknown as EventDetail;
-
-  const { data: requestData } = await supabase
-    .from("requests")
-    .select(
-      "id, title, category, amount_estimated, amount_claimed, status, created_at, submitter:app_users!requests_submitter_id_fkey (display_name)"
-    )
-    .eq("event_id", id)
-    .order("created_at", { ascending: true });
   const requests = (requestData ?? []) as unknown as RequestRow[];
 
   const canManage = hasRole(user, "exec") || hasRole(user, "payment_manager");

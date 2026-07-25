@@ -5,6 +5,7 @@ import { CATEGORIES } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/format";
 import { Nav } from "@/components/nav";
 import { PaymentMethodFields } from "@/components/payment-method-fields";
+import { SubmitButton } from "@/components/submit-button";
 import { createRequest } from "../actions";
 
 const inputClass =
@@ -13,17 +14,18 @@ const inputClass =
 export default async function NewRequestPage() {
   const user = await requireAppUser();
   const supabase = await createClient();
-  const { data: events } = await supabase
-    .from("events")
-    .select("id, title")
-    .eq("is_open", true)
-    .order("created_at", { ascending: false });
-
-  // Saved payout details for prefill (RLS: own row only).
-  const { data: savedBank } = await supabase
-    .from("bank_details")
-    .select("payment_method, payid, bsb, account_number")
-    .maybeSingle();
+  const [{ data: events }, { data: savedBank }] = await Promise.all([
+    supabase
+      .from("events")
+      .select("id, title")
+      .eq("is_open", true)
+      .order("created_at", { ascending: false }),
+    // Saved payout details for prefill (RLS: own row only).
+    supabase
+      .from("bank_details")
+      .select("payment_method, payid, bsb, account_number")
+      .maybeSingle(),
+  ]);
 
   return (
     <>
@@ -107,12 +109,9 @@ export default async function NewRequestPage() {
               showSaveCheckbox
               defaultSave={!!savedBank}
             />
-            <button
-              type="submit"
-              className="mt-1 self-start rounded-md bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover"
-            >
+            <SubmitButton className="mt-1 self-start rounded-md bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover">
               Submit request
-            </button>
+            </SubmitButton>
           </form>
         )}
       </main>
