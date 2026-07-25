@@ -12,6 +12,7 @@ import type { BankDetails, Category, RequestStatus } from "@/lib/types";
 import { Nav } from "@/components/nav";
 import { StatusBadge } from "@/components/status-badge";
 import { PaymentMethodFields } from "@/components/payment-method-fields";
+import { SubmitButton } from "@/components/submit-button";
 import {
   approveSpend,
   rejectRequest,
@@ -63,32 +64,32 @@ export default async function RequestPage({
   const user = await requireAppUser();
   const supabase = await createClient();
 
-  const { data } = await supabase
-    .from("requests")
-    .select(
-      "id, submitter_id, title, description, amount_estimated, amount_claimed, category, receipt_path, status, created_at, event:events (title), submitter:app_users!requests_submitter_id_fkey (display_name)"
-    )
-    .eq("id", id)
-    .maybeSingle();
+  const [{ data }, { data: historyData }, { data: bank }] = await Promise.all([
+    supabase
+      .from("requests")
+      .select(
+        "id, submitter_id, title, description, amount_estimated, amount_claimed, category, receipt_path, status, created_at, event:events (title), submitter:app_users!requests_submitter_id_fkey (display_name)"
+      )
+      .eq("id", id)
+      .maybeSingle(),
+    supabase
+      .from("status_history")
+      .select(
+        "id, from_status, to_status, note, created_at, actor:app_users!status_history_actor_id_fkey (display_name)"
+      )
+      .eq("request_id", id)
+      .order("created_at", { ascending: true }),
+    // Payout details: RLS only returns this row to the submitter and
+    // payment managers, and it is deleted once the request is reimbursed.
+    supabase
+      .from("request_bank_details")
+      .select("payment_method, payid, bsb, account_number")
+      .eq("request_id", id)
+      .maybeSingle(),
+  ]);
   if (!data) notFound();
   const request = data as unknown as RequestDetail;
-
-  const { data: historyData } = await supabase
-    .from("status_history")
-    .select(
-      "id, from_status, to_status, note, created_at, actor:app_users!status_history_actor_id_fkey (display_name)"
-    )
-    .eq("request_id", id)
-    .order("created_at", { ascending: true });
   const history = (historyData ?? []) as unknown as HistoryRow[];
-
-  // Payout details: RLS only returns this row to the submitter and
-  // payment managers, and it is deleted once the request is reimbursed.
-  const { data: bank } = await supabase
-    .from("request_bank_details")
-    .select("payment_method, payid, bsb, account_number")
-    .eq("request_id", id)
-    .maybeSingle();
 
   // Receipt is behind a short-lived signed URL; anyone who can see the
   // request row is allowed to see its receipt.
@@ -184,9 +185,9 @@ export default async function RequestPage({
               </p>
               <div className="mt-3 flex flex-wrap items-start gap-3">
                 <form action={approveSpend.bind(null, request.id)}>
-                  <button type="submit" className={primaryButton}>
+                  <SubmitButton className={primaryButton}>
                     Approve spend
-                  </button>
+                  </SubmitButton>
                 </form>
                 <form
                   action={rejectRequest.bind(null, request.id)}
@@ -198,9 +199,7 @@ export default async function RequestPage({
                     placeholder="Rejection reason (required)"
                     className={`${inputClass} flex-1`}
                   />
-                  <button type="submit" className={dangerButton}>
-                    Reject
-                  </button>
+                  <SubmitButton className={dangerButton}>Reject</SubmitButton>
                 </form>
               </div>
             </div>
@@ -239,9 +238,9 @@ export default async function RequestPage({
                     className="text-sm"
                   />
                 </label>
-                <button type="submit" className={primaryButton}>
+                <SubmitButton className={primaryButton}>
                   Submit claim
-                </button>
+                </SubmitButton>
               </div>
             </form>
           )}
@@ -251,9 +250,9 @@ export default async function RequestPage({
               <p className="text-sm font-medium">Claim approval</p>
               <div className="mt-3 flex flex-wrap items-start gap-3">
                 <form action={approveClaim.bind(null, request.id)}>
-                  <button type="submit" className={primaryButton}>
+                  <SubmitButton className={primaryButton}>
                     Approve claim
-                  </button>
+                  </SubmitButton>
                 </form>
                 <form
                   action={rejectRequest.bind(null, request.id)}
@@ -265,9 +264,7 @@ export default async function RequestPage({
                     placeholder="Rejection reason (required)"
                     className={`${inputClass} flex-1`}
                   />
-                  <button type="submit" className={dangerButton}>
-                    Reject
-                  </button>
+                  <SubmitButton className={dangerButton}>Reject</SubmitButton>
                 </form>
               </div>
             </div>
@@ -288,9 +285,9 @@ export default async function RequestPage({
                     className={inputClass}
                   />
                 </label>
-                <button type="submit" className={primaryButton}>
+                <SubmitButton className={primaryButton}>
                   Mark reimbursed
-                </button>
+                </SubmitButton>
               </div>
             </form>
           )}
@@ -335,12 +332,9 @@ export default async function RequestPage({
                     defaultAccountNumber={bank?.account_number ?? ""}
                     fieldBg="bg-bg"
                   />
-                  <button
-                    type="submit"
-                    className={`${primaryButton} self-start`}
-                  >
+                  <SubmitButton className={`${primaryButton} self-start`}>
                     Resubmit
-                  </button>
+                  </SubmitButton>
                 </div>
               </form>
             )}
@@ -375,9 +369,9 @@ export default async function RequestPage({
                       className="text-sm"
                     />
                   </label>
-                  <button type="submit" className={primaryButton}>
+                  <SubmitButton className={primaryButton}>
                     Resubmit claim
-                  </button>
+                  </SubmitButton>
                 </div>
               </form>
             )}

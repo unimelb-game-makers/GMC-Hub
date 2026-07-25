@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SubmitButton } from "@/components/submit-button";
 
 const dateFormatter = new Intl.DateTimeFormat("en-AU", {
   day: "numeric",
@@ -55,12 +56,9 @@ export function EventHeader({
           className="rounded-md border border-line bg-bg px-3 py-2 text-sm"
         />
         <div className="flex gap-2">
-          <button
-            type="submit"
-            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover"
-          >
+          <SubmitButton className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover">
             Save
-          </button>
+          </SubmitButton>
           <button
             type="button"
             onClick={() => setEditing(false)}
@@ -110,12 +108,9 @@ export function EventHeader({
             Edit
           </button>
           <form action={onToggleOpen}>
-            <button
-              type="submit"
-              className="rounded-md border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:bg-bg"
-            >
+            <SubmitButton className="rounded-md border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:bg-bg">
               {event.is_open ? "Close event" : "Reopen event"}
-            </button>
+            </SubmitButton>
           </form>
           <form
             action={onDelete}
@@ -125,12 +120,9 @@ export function EventHeader({
               }
             }}
           >
-            <button
-              type="submit"
-              className="rounded-md border border-[#5a3232] px-3 py-1.5 text-xs font-medium text-[#f0a3a3] transition-colors hover:bg-[#2a1818]"
-            >
+            <SubmitButton className="rounded-md border border-[#5a3232] px-3 py-1.5 text-xs font-medium text-[#f0a3a3] transition-colors hover:bg-[#2a1818]">
               Delete
-            </button>
+            </SubmitButton>
           </form>
         </div>
       )}

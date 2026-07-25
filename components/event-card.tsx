@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { StatusBadge } from "@/components/status-badge";
+import { SubmitButton } from "@/components/submit-button";
 import { REQUEST_STATUSES, type RequestStatus } from "@/lib/types";
 
 const dateFormatter = new Intl.DateTimeFormat("en-AU", {
@@ -11,7 +12,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-AU", {
   year: "numeric",
 });
 
-interface EventCardProps {
+export interface EventCardProps {
   event: {
     id: string;
     title: string;
@@ -61,12 +62,9 @@ export function EventCard({
             className="rounded-md border border-line bg-bg px-3 py-2 text-sm"
           />
           <div className="flex gap-2">
-            <button
-              type="submit"
-              className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-ink transition-colors hover:bg-accent-hover"
-            >
+            <SubmitButton className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-ink transition-colors hover:bg-accent-hover">
               Save
-            </button>
+            </SubmitButton>
             <button
               type="button"
               onClick={() => setEditing(false)}
@@ -130,12 +128,9 @@ export function EventCard({
                 Edit
               </button>
               <form action={onToggleOpen}>
-                <button
-                  type="submit"
-                  className="rounded-md border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:bg-bg"
-                >
+                <SubmitButton className="rounded-md border border-line px-3 py-1.5 text-xs font-medium transition-colors hover:bg-bg">
                   {event.is_open ? "Close" : "Reopen"}
-                </button>
+                </SubmitButton>
               </form>
             </div>
             <form
@@ -146,12 +141,9 @@ export function EventCard({
                 }
               }}
             >
-              <button
-                type="submit"
-                className="rounded-md border border-[#5a3232] px-3 py-1.5 text-xs font-medium text-[#f0a3a3] transition-colors hover:bg-[#2a1818]"
-              >
+              <SubmitButton className="rounded-md border border-[#5a3232] px-3 py-1.5 text-xs font-medium text-[#f0a3a3] transition-colors hover:bg-[#2a1818]">
                 Delete
-              </button>
+              </SubmitButton>
             </form>
           </div>
         )}

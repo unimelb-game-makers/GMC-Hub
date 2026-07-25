@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { requireAppUser, hasRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Nav } from "@/components/nav";
-import { EventCard } from "@/components/event-card";
+import { EventsTabs } from "@/components/events-tabs";
+import { SubmitButton } from "@/components/submit-button";
 import type { RequestStatus } from "@/lib/types";
 import { createEvent, setEventOpen, updateEvent, deleteEvent } from "./actions";
 
@@ -21,27 +21,20 @@ interface RequestStatusRow {
   status: RequestStatus;
 }
 
-export default async function EventsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string }>;
-}) {
-  const { tab } = await searchParams;
-  const activeTab = tab === "previous" ? "previous" : "open";
-
+export default async function EventsPage() {
   const user = await requireAppUser();
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("events")
-    .select(
-      "id, title, description, is_open, created_at, closed_at, creator:app_users!events_created_by_fkey (display_name)"
-    )
-    .order("created_at", { ascending: false });
-  const events = (data ?? []) as unknown as EventRow[];
 
-  const { data: statusData } = await supabase
-    .from("requests")
-    .select("event_id, status");
+  const [{ data }, { data: statusData }] = await Promise.all([
+    supabase
+      .from("events")
+      .select(
+        "id, title, description, is_open, created_at, closed_at, creator:app_users!events_created_by_fkey (display_name)"
+      )
+      .order("created_at", { ascending: false }),
+    supabase.from("requests").select("event_id, status"),
+  ]);
+  const events = (data ?? []) as unknown as EventRow[];
   const statusRows = (statusData ?? []) as RequestStatusRow[];
   const statusCounts = new Map<string, Partial<Record<RequestStatus, number>>>();
   for (const row of statusRows) {
@@ -51,9 +44,23 @@ export default async function EventsPage({
   }
 
   const canManage = hasRole(user, "exec") || hasRole(user, "payment_manager");
-  const openEvents = events.filter((e) => e.is_open);
-  const previousEvents = events.filter((e) => !e.is_open);
-  const shown = activeTab === "open" ? openEvents : previousEvents;
+  const toEntry = (event: EventRow) => ({
+    event: {
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      is_open: event.is_open,
+      created_at: event.created_at,
+      closed_at: event.closed_at,
+      creatorName: event.creator?.display_name ?? "unknown",
+    },
+    counts: statusCounts.get(event.id) ?? {},
+    onToggleOpen: setEventOpen.bind(null, event.id, !event.is_open),
+    onUpdate: updateEvent.bind(null, event.id),
+    onDelete: deleteEvent.bind(null, event.id),
+  });
+  const openEvents = events.filter((e) => e.is_open).map(toEntry);
+  const previousEvents = events.filter((e) => !e.is_open).map(toEntry);
 
   return (
     <>
@@ -84,68 +91,17 @@ export default async function EventsPage({
               placeholder="Description (optional)"
               className="rounded-md border border-line bg-bg px-3 py-2 text-sm placeholder:text-ink-soft/60"
             />
-            <button
-              type="submit"
-              className="self-start rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover"
-            >
+            <SubmitButton className="self-start rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover">
               Create event
-            </button>
+            </SubmitButton>
           </form>
         )}
 
-        <div className="mt-6 flex gap-1 border-b border-line text-sm font-medium">
-          <Link
-            href="/events?tab=open"
-            className={`-mb-px border-b-2 px-3 py-2 transition-colors ${
-              activeTab === "open"
-                ? "border-accent text-ink"
-                : "border-transparent text-ink-soft hover:text-ink"
-            }`}
-          >
-            Open ({openEvents.length})
-          </Link>
-          <Link
-            href="/events?tab=previous"
-            className={`-mb-px border-b-2 px-3 py-2 transition-colors ${
-              activeTab === "previous"
-                ? "border-accent text-ink"
-                : "border-transparent text-ink-soft hover:text-ink"
-            }`}
-          >
-            Previous ({previousEvents.length})
-          </Link>
-        </div>
-
-        <ul className="mt-4 flex flex-col gap-3">
-          {shown.map((event) => (
-            <EventCard
-              key={event.id}
-              event={{
-                id: event.id,
-                title: event.title,
-                description: event.description,
-                is_open: event.is_open,
-                created_at: event.created_at,
-                closed_at: event.closed_at,
-                creatorName: event.creator?.display_name ?? "unknown",
-              }}
-              counts={statusCounts.get(event.id) ?? {}}
-              canManage={canManage}
-              onToggleOpen={setEventOpen.bind(null, event.id, !event.is_open)}
-              onUpdate={updateEvent.bind(null, event.id)}
-              onDelete={deleteEvent.bind(null, event.id)}
-            />
-          ))}
-          {shown.length === 0 && (
-            <li className="py-8 text-center text-sm text-ink-soft/70">
-              {activeTab === "open"
-                ? canManage
-                  ? "No open events. Create one above."
-                  : "No open events. An exec or payment manager needs to create one first."
-                : "No previous events yet."}
-            </li>
-          )}
-        </ul>
+        <EventsTabs
+          openEvents={openEvents}
+          previousEvents={previousEvents}
+          canManage={canManage}
+        />
       </main>
     </>
   );
