@@ -22,7 +22,9 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   food: "F&B",
   equipment: "Equipment",
   venue: "Venue",
-  printing: "Printing",
+  umsu_assets: "UMSU Assets",
+  printing: "Printing (UMSU Purchases Other)",
+  csm_promotional_material: "C&S Promotional Material",
   other: "Other",
 };
 

@@ -17,7 +17,9 @@ export const CATEGORIES = [
   "food",
   "equipment",
   "venue",
+  "umsu_assets",
   "printing",
+  "csm_promotional_material",
   "other",
 ] as const;
 export type Category = (typeof CATEGORIES)[number];

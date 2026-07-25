@@ -3,6 +3,10 @@
 import { useState } from "react";
 import type { PaymentMethod } from "@/lib/types";
 
+// The club can't pay out via PayID yet — only BSB + account number for now.
+// Flip back to true once that capability exists.
+const PAYID_ENABLED = false;
+
 export function PaymentMethodFields({
   defaultMethod = "bank_transfer",
   defaultPayid = "",
@@ -20,7 +24,9 @@ export function PaymentMethodFields({
   defaultSave?: boolean;
   fieldBg?: string;
 }) {
-  const [method, setMethod] = useState<PaymentMethod>(defaultMethod);
+  const [method, setMethod] = useState<PaymentMethod>(
+    PAYID_ENABLED ? defaultMethod : "bank_transfer"
+  );
   const inputClass = `rounded-md border border-line ${fieldBg} px-3 py-2 text-sm font-normal placeholder:text-ink-soft/60`;
 
   return (
@@ -31,32 +37,36 @@ export function PaymentMethodFields({
         and the payment manager can see this.
       </p>
 
-      <div className="mt-3 flex gap-4 text-sm font-medium">
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            name="payment_method"
-            value="payid"
-            checked={method === "payid"}
-            onChange={() => setMethod("payid")}
-            className="accent-accent"
-          />
-          PayID
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            name="payment_method"
-            value="bank_transfer"
-            checked={method === "bank_transfer"}
-            onChange={() => setMethod("bank_transfer")}
-            className="accent-accent"
-          />
-          BSB + account number
-        </label>
-      </div>
+      {PAYID_ENABLED ? (
+        <div className="mt-3 flex gap-4 text-sm font-medium">
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="payment_method"
+              value="payid"
+              checked={method === "payid"}
+              onChange={() => setMethod("payid")}
+              className="accent-accent"
+            />
+            PayID
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="payment_method"
+              value="bank_transfer"
+              checked={method === "bank_transfer"}
+              onChange={() => setMethod("bank_transfer")}
+              className="accent-accent"
+            />
+            BSB + account number
+          </label>
+        </div>
+      ) : (
+        <input type="hidden" name="payment_method" value="bank_transfer" />
+      )}
 
-      {method === "payid" ? (
+      {PAYID_ENABLED && method === "payid" ? (
         <label className="mt-3 flex flex-col gap-1 text-sm font-medium">
           PayID
           <input
