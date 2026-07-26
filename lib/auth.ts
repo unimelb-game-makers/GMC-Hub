@@ -18,7 +18,10 @@ const APP_USER_COLUMNS =
 
 // Re-fetch Discord roles when the cached copy is older than this, so
 // committee changes propagate without users signing out and back in.
-const ROLE_SYNC_TTL_MS = 10 * 60 * 1000;
+// 5 min balances freshness against the Discord API round-trip a stale page
+// load pays. Truly instant would need the gateway bot to push
+// GUILD_MEMBER_UPDATE events, which isn't worth the infra for this club.
+const ROLE_SYNC_TTL_MS = 5 * 60 * 1000;
 
 // Fetch current guild roles for a Discord user and upsert their app row.
 // Not in the guild (or bot failure treated as unknown) -> roles cleared.

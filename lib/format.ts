@@ -1,4 +1,4 @@
-import type { BankDetails, Category, RequestStatus } from "@/lib/types";
+import { ROLES, type BankDetails, type Category, type RequestStatus, type Role } from "@/lib/types";
 
 export function formatAUD(amount: number): string {
   return new Intl.NumberFormat("en-AU", {
@@ -27,6 +27,21 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   csm_promotional_material: "C&S Promotional Material",
   other: "Other",
 };
+
+export const ROLE_LABELS: Record<Role, string> = {
+  member: "Member",
+  exec: "Executive",
+  payment_manager: "Payment Manager",
+};
+
+// Roles are hierarchical (member < exec < payment_manager, matching ROLES
+// order), so show the most senior one the user holds.
+export function highestRoleLabel(roles: Role[]): string | null {
+  for (let i = ROLES.length - 1; i >= 0; i--) {
+    if (roles.includes(ROLES[i])) return ROLE_LABELS[ROLES[i]];
+  }
+  return null;
+}
 
 export const STATUS_LABELS: Record<RequestStatus, string> = {
   pending_approval: "Pending approval",
