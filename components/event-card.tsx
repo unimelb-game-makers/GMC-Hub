@@ -38,6 +38,7 @@ export function EventCard({
   onDelete,
 }: EventCardProps) {
   const [editing, setEditing] = useState(false);
+  const hasRequests = Object.keys(counts).length > 0;
 
   if (editing) {
     return (
@@ -133,18 +134,27 @@ export function EventCard({
                 </SubmitButton>
               </form>
             </div>
-            <form
-              action={onDelete}
-              onSubmit={(e) => {
-                if (!confirm(`Delete "${event.title}"? This can't be undone.`)) {
-                  e.preventDefault();
-                }
-              }}
-            >
-              <SubmitButton className="rounded-md border border-[#5a3232] px-3 py-1.5 text-xs font-medium text-[#f0a3a3] transition-colors hover:bg-[#2a1818]">
+            {hasRequests ? (
+              <span
+                title="Can't delete an event with requests under it. Close it instead."
+                className="cursor-not-allowed rounded-md border border-line px-3 py-1.5 text-xs font-medium text-ink-soft/50"
+              >
                 Delete
-              </SubmitButton>
-            </form>
+              </span>
+            ) : (
+              <form
+                action={onDelete}
+                onSubmit={(e) => {
+                  if (!confirm(`Delete "${event.title}"? This can't be undone.`)) {
+                    e.preventDefault();
+                  }
+                }}
+              >
+                <SubmitButton className="rounded-md border border-[#5a3232] px-3 py-1.5 text-xs font-medium text-[#f0a3a3] transition-colors hover:bg-[#2a1818]">
+                  Delete
+                </SubmitButton>
+              </form>
+            )}
           </div>
         )}
       </div>

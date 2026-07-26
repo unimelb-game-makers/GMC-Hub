@@ -98,6 +98,7 @@ export default async function EventDetailPage({
             creatorName: event.creator?.display_name ?? "unknown",
           }}
           canManage={canManage}
+          hasRequests={requests.length > 0}
           onToggleOpen={setEventOpen.bind(null, event.id, !event.is_open)}
           onUpdate={updateEvent.bind(null, event.id)}
           onDelete={deleteEvent.bind(null, event.id)}
