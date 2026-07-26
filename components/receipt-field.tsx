@@ -18,11 +18,14 @@ export function ReceiptField({
       <span className="flex flex-col gap-1 text-sm font-medium">
         {label}
         {/* Real <input type="file"> stays in the DOM (so it still submits
-            with the form) but hidden; a normal button drives it via .click().
-            More reliable across browsers/mobile than styling the native
-            file-picker button directly. accept covers both camera/gallery
-            photos and PDFs — mobile browsers show the full picker (gallery,
-            camera, files) for image/* automatically. */}
+            with the form) but visually hidden; a normal button drives it via
+            .click(). More reliable across browsers/mobile than styling the
+            native file-picker button directly. accept covers both
+            camera/gallery photos and PDFs — mobile browsers show the full
+            picker (gallery, camera, files) for image/* automatically.
+            sr-only, not `hidden`/display:none: a display:none input is
+            excluded from HTML5 constraint validation, so `required` would
+            silently stop blocking submission. */}
         <input
           ref={inputRef}
           name="receipt"
@@ -31,7 +34,7 @@ export function ReceiptField({
           required={required && !inDrive}
           disabled={inDrive}
           onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
-          className="hidden"
+          className="sr-only"
         />
         <span className="flex flex-wrap items-center gap-3">
           <button
