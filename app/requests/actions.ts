@@ -77,6 +77,18 @@ function parseAmount(value: FormDataEntryValue | null): number {
 const MAX_RECEIPT_FILES = 3;
 const MAX_RECEIPT_SIZE_BYTES = 8 * 1024 * 1024;
 
+// Real filenames (camera/screenshot defaults especially) routinely contain
+// spaces and other characters Supabase Storage's object keys reject outright
+// ("Invalid key"). Keep only what's safe, preserving the extension.
+function sanitizeFilename(name: string): string {
+  const lastDot = name.lastIndexOf(".");
+  const base = lastDot > 0 ? name.slice(0, lastDot) : name;
+  const ext = lastDot > 0 ? name.slice(lastDot) : "";
+  const safeBase = base.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 100);
+  const safeExt = ext.replace(/[^a-zA-Z0-9.]+/g, "");
+  return `${safeBase || "file"}${safeExt}`;
+}
+
 // Uploads up to MAX_RECEIPT_FILES receipt files to Supabase Storage and
 // returns their paths. Mirrors the client-side cap in receipt-field.tsx —
 // enforced again here since the client check is only a UX convenience, not
@@ -101,7 +113,7 @@ async function uploadReceipts(
   const admin = createAdminClient();
   const paths: string[] = [];
   for (const file of files) {
-    const path = `${userId}/${requestId}/${Date.now()}-${file.name}`;
+    const path = `${userId}/${requestId}/${Date.now()}-${sanitizeFilename(file.name)}`;
     const { error } = await admin.storage
       .from("receipts")
       .upload(path, Buffer.from(await file.arrayBuffer()), {
