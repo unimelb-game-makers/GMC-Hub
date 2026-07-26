@@ -15,11 +15,6 @@ const SUPPRESS_EMBEDS = 1 << 2;
 // actually notify real people. Role sync (fetchGuildMember) is unaffected.
 const NOTIFICATIONS_ENABLED = process.env.DISCORD_NOTIFICATIONS_ENABLED !== "false";
 
-// While testing in production: channel messages still post and still show
-// the role name as text, but Discord won't actually ping the role's members.
-// Flip DISCORD_MENTIONS_ENABLED back to unset/"true" once testing is done.
-const MENTIONS_ENABLED = process.env.DISCORD_MENTIONS_ENABLED !== "false";
-
 function botHeaders() {
   return {
     Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN!}`,
@@ -66,7 +61,7 @@ export async function sendChannelMessage(content: string) {
         headers: botHeaders(),
         body: JSON.stringify({
           content,
-          allowed_mentions: { parse: MENTIONS_ENABLED ? ["roles"] : [] },
+          allowed_mentions: { parse: ["roles"] },
           flags: SUPPRESS_EMBEDS,
         }),
       }
@@ -105,17 +100,10 @@ export async function sendDirectMessage(discordId: string, content: string) {
   }
 }
 
-// A space right after "@" breaks Discord's mention syntax entirely, so the
-// role name never actually pings, regardless of allowed_mentions handling.
-// Revert to the real `<@&ID>` form once testing is done.
 export const committeeMention = () =>
-  MENTIONS_ENABLED
-    ? `<@&${process.env.DISCORD_COMMITTEE_ROLE_ID}>`
-    : `<@ &${process.env.DISCORD_COMMITTEE_ROLE_ID}>`;
+  `<@&${process.env.DISCORD_COMMITTEE_ROLE_ID}>`;
 export const paymentManagerMention = () =>
-  MENTIONS_ENABLED
-    ? `<@&${process.env.DISCORD_PAYMENT_MANAGER_ROLE_ID}>`
-    : `<@ &${process.env.DISCORD_PAYMENT_MANAGER_ROLE_ID}>`;
+  `<@&${process.env.DISCORD_PAYMENT_MANAGER_ROLE_ID}>`;
 
 // A discrete masked link appended to notifications so the reader can jump
 // straight to the request instead of opening the app and hunting for it.
