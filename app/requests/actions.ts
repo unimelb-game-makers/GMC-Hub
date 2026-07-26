@@ -361,21 +361,23 @@ export async function resubmitClaim(requestId: string, formData: FormData) {
   if (request.status !== "rejected") throw new Error("Wrong status");
 
   const amount = parseAmount(formData.get("amount_claimed"));
-  const fields: Record<string, unknown> = { amount_claimed: amount };
-
   const receiptInDrive = !!formData.get("receipt_in_drive");
-  if (receiptInDrive) {
-    fields.receipt_paths = [];
-    fields.receipt_in_drive = true;
-  } else {
-    const receiptPaths = await uploadReceipts(formData, user.id, request.id);
-    if (receiptPaths.length > 0) {
-      fields.receipt_paths = receiptPaths;
-      fields.receipt_in_drive = false;
+
+  let receiptPaths: string[] = [];
+  if (!receiptInDrive) {
+    receiptPaths = await uploadReceipts(formData, user.id, request.id);
+    if (receiptPaths.length === 0) {
+      throw new Error(
+        "A receipt is required (attach a file, or confirm it's in the Drive folder)"
+      );
     }
   }
 
-  await transition(request, user, "claim_submitted", fields);
+  await transition(request, user, "claim_submitted", {
+    amount_claimed: amount,
+    receipt_paths: receiptPaths,
+    receipt_in_drive: receiptInDrive,
+  });
   await sendChannelMessage(
     `${committeeMention()} **${user.display_name}** resubmitted their claim for ` +
       `**${request.title}** (${formatAUD(amount)}), needs exec approval.`
