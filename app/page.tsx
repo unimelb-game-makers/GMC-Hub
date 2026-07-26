@@ -74,7 +74,25 @@ export default async function Home() {
     )
   );
 
-  const mine = requests.filter((r) => r.submitter_id === user.id);
+  // Each section only shows what hasn't already appeared above it — with
+  // small clubs, the same person is often submitter + exec + payment
+  // manager on the same handful of requests, so without this the dashboard
+  // just repeats itself three times over. Reimbursed requests are fully
+  // closed (nothing left for anyone to do), so they're split into their own
+  // collapsed section instead of cluttering the active lists forever — the
+  // `requests` query is already RLS-scoped (members only see their own,
+  // exec/payment_manager see everyone's), so "completed" naturally covers
+  // the right set for either case.
+  const needsActionIds = new Set(needsAction.map((r) => r.id));
+  const completed = requests.filter(
+    (r) => r.status === "reimbursed" && !needsActionIds.has(r.id)
+  );
+  const active = requests.filter(
+    (r) => r.status !== "reimbursed" && !needsActionIds.has(r.id)
+  );
+  const mine = active.filter((r) => r.submitter_id === user.id);
+  const shownIds = new Set([...needsActionIds, ...mine.map((r) => r.id)]);
+  const others = active.filter((r) => !shownIds.has(r.id));
 
   return (
     <>
@@ -92,40 +110,55 @@ export default async function Home() {
           </Link>
         </div>
 
-        <section className="mt-6">
-          <h2 className="text-sm font-medium text-ink-soft">
-            Needs your action
-          </h2>
-          {needsAction.length > 0 ? (
-            <RequestList requests={needsAction} />
-          ) : (
-            <p className="mt-2 text-sm text-ink-soft/70">
-              Nothing needs your action right now.
-            </p>
-          )}
-        </section>
-
-        <section className="mt-8">
-          <h2 className="text-sm font-medium text-ink-soft">Your requests</h2>
-          {mine.length > 0 ? (
-            <RequestList requests={mine} />
-          ) : (
-            <p className="mt-2 text-sm text-ink-soft/70">
-              You haven&apos;t made any requests yet.
-            </p>
-          )}
-        </section>
-
-        {(hasRole(user, "exec") || hasRole(user, "payment_manager")) && (
-          <section className="mt-8">
-            <h2 className="text-sm font-medium text-ink-soft">All requests</h2>
-            {requests.length > 0 ? (
-              <RequestList requests={requests} />
+        {requests.length > 0 && (
+          <details className="mt-6" open>
+            <summary className="cursor-pointer text-sm font-medium text-ink-soft">
+              Needs your action{needsAction.length > 0 && ` (${needsAction.length})`}
+            </summary>
+            {needsAction.length > 0 ? (
+              <RequestList requests={needsAction} />
             ) : (
-              <p className="mt-2 text-sm text-ink-soft/70">No requests yet.</p>
+              <p className="mt-2 text-sm text-ink-soft/70">
+                Nothing needs your action right now.
+              </p>
             )}
-          </section>
+          </details>
         )}
+
+        {mine.length > 0 && (
+          <details className="mt-6" open>
+            <summary className="cursor-pointer text-sm font-medium text-ink-soft">
+              Your requests ({mine.length})
+            </summary>
+            <RequestList requests={mine} />
+          </details>
+        )}
+
+        {(hasRole(user, "exec") || hasRole(user, "payment_manager")) &&
+          others.length > 0 && (
+            <details className="mt-6">
+              <summary className="cursor-pointer text-sm font-medium text-ink-soft">
+                Other requests ({others.length})
+              </summary>
+              <RequestList requests={others} />
+            </details>
+          )}
+
+        {completed.length > 0 && (
+          <details className="mt-6">
+            <summary className="cursor-pointer text-sm font-medium text-ink-soft">
+              Completed ({completed.length})
+            </summary>
+            <RequestList requests={completed} />
+          </details>
+        )}
+
+        {needsAction.length === 0 &&
+          mine.length === 0 &&
+          others.length === 0 &&
+          completed.length === 0 && (
+            <p className="mt-6 text-sm text-ink-soft/70">No requests yet.</p>
+          )}
       </main>
     </>
   );
