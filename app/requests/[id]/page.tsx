@@ -338,7 +338,7 @@ export default async function RequestPage({
                     name="description"
                     rows={2}
                     defaultValue={request.description}
-                    className={inputClass}
+                    className={`${inputClass} max-h-40 overflow-y-auto`}
                   />
                   <label className="flex max-w-xs flex-col gap-1 text-sm font-medium">
                     Estimated amount (AUD)
@@ -399,27 +399,49 @@ export default async function RequestPage({
         <section className="mt-8">
           <h2 className="text-sm font-medium text-ink-soft">History</h2>
           <ol className="mt-2 flex flex-col gap-2 text-sm">
-            {history.map((entry) => (
-              <li
-                key={entry.id}
-                className="flex flex-wrap items-baseline gap-x-2 border-l-2 border-line pl-3"
-              >
-                <span className="font-medium">
-                  {entry.actor?.display_name ?? "Unknown"}
-                </span>
-                <span className="text-ink-soft">
-                  {entry.from_status
-                    ? `${STATUS_LABELS[entry.from_status]} → ${STATUS_LABELS[entry.to_status]}`
-                    : `Submitted (${STATUS_LABELS[entry.to_status]})`}
-                </span>
-                <span className="font-mono text-xs text-ink-soft/70">
-                  {new Date(entry.created_at).toLocaleString("en-AU")}
-                </span>
-                {entry.note && (
-                  <span className="w-full text-ink-soft">“{entry.note}”</span>
-                )}
-              </li>
-            ))}
+            {history.map((entry, i) => {
+              // status_history only stores a note for rejections/reimbursement
+              // confirmations; the spend description isn't snapshotted per
+              // entry, so show the current description on the most recent
+              // pending_approval entry (the last submission or resubmit).
+              const isLatestPendingApproval =
+                entry.to_status === "pending_approval" &&
+                !history
+                  .slice(i + 1)
+                  .some((h) => h.to_status === "pending_approval");
+              const detail =
+                entry.note ||
+                (isLatestPendingApproval ? request.description : null);
+
+              return (
+                <li
+                  key={entry.id}
+                  className="flex flex-wrap items-baseline gap-x-2 border-l-2 border-line pl-3"
+                >
+                  <span className="font-medium">
+                    {entry.actor?.display_name ?? "Unknown"}
+                  </span>
+                  <span className="text-ink-soft">
+                    {entry.from_status
+                      ? `${STATUS_LABELS[entry.from_status]} → ${STATUS_LABELS[entry.to_status]}`
+                      : `Submitted (${STATUS_LABELS[entry.to_status]})`}
+                  </span>
+                  <span className="font-mono text-xs text-ink-soft/70">
+                    {new Date(entry.created_at).toLocaleString("en-AU")}
+                  </span>
+                  {detail && (
+                    <details className="w-full text-ink-soft">
+                      <summary className="cursor-pointer text-xs text-accent">
+                        {entry.note ? "Note" : "Description"}
+                      </summary>
+                      <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap">
+                        {detail}
+                      </p>
+                    </details>
+                  )}
+                </li>
+              );
+            })}
           </ol>
         </section>
       </main>

@@ -89,7 +89,7 @@ export default async function EventsPage() {
               name="description"
               rows={2}
               placeholder="Description (optional)"
-              className="rounded-md border border-line bg-bg px-3 py-2 text-sm placeholder:text-ink-soft/60"
+              className="max-h-40 overflow-y-auto rounded-md border border-line bg-bg px-3 py-2 text-sm placeholder:text-ink-soft/60"
             />
             <SubmitButton className="self-start rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover">
               Create event

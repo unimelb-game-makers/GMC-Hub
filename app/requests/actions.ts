@@ -177,13 +177,14 @@ export async function createRequest(formData: FormData) {
     .single();
   if (!event?.is_open) throw new Error("Event is not open for requests");
 
+  const description = String(formData.get("description") ?? "").trim();
   const { data: request, error } = await admin
     .from("requests")
     .insert({
       event_id: eventId,
       submitter_id: user.id,
       title,
-      description: String(formData.get("description") ?? "").trim(),
+      description,
       amount_estimated: amount,
       category,
     })
@@ -211,7 +212,8 @@ export async function createRequest(formData: FormData) {
 
   await sendChannelMessage(
     `${committeeMention()} New spend request from **${user.display_name}**: ` +
-      `**${title}** (${formatAUD(amount)}) under *${event.title}*, needs exec approval.`
+      `**${title}** (${formatAUD(amount)}) under *${event.title}*, needs exec approval.` +
+      (description ? `\n> ${description}` : "")
   );
 
   revalidatePath("/");
@@ -318,7 +320,8 @@ export async function confirmReimbursed(requestId: string, formData: FormData) {
 
   await sendDirectMessage(
     request.submitter.discord_id,
-    `You've been reimbursed ${formatAUD(request.amount_claimed ?? 0)} for **${request.title}**.`
+    `You've been reimbursed ${formatAUD(request.amount_claimed ?? 0)} for **${request.title}**.` +
+      (note ? `\n> ${note}` : "")
   );
 }
 
@@ -334,12 +337,13 @@ export async function resubmitSpend(requestId: string, formData: FormData) {
 
   const title = String(formData.get("title") ?? "").trim();
   if (!title) throw new Error("Title is required");
+  const description = String(formData.get("description") ?? "").trim();
   const amount = parseAmount(formData.get("amount_estimated"));
   const bank = parseBankDetails(formData);
 
   await transition(request, user, "pending_approval", {
     title,
-    description: String(formData.get("description") ?? "").trim(),
+    description,
     amount_estimated: amount,
   });
 
@@ -349,7 +353,8 @@ export async function resubmitSpend(requestId: string, formData: FormData) {
 
   await sendChannelMessage(
     `${committeeMention()} **${user.display_name}** resubmitted spend request ` +
-      `**${title}** (${formatAUD(amount)}), needs exec approval.`
+      `**${title}** (${formatAUD(amount)}), needs exec approval.` +
+      (description ? `\n> ${description}` : "")
   );
 }
 
