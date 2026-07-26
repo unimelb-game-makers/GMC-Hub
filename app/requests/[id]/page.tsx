@@ -387,7 +387,7 @@ export default async function RequestPage({
                       className={inputClass}
                     />
                   </label>
-                  <ReceiptField label="New receipt (optional)" required={false} />
+                  <ReceiptField label="Receipt (PDF or image)" required />
                   <SubmitButton className={primaryButton}>
                     Resubmit claim
                   </SubmitButton>

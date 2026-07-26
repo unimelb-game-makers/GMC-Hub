@@ -47,12 +47,13 @@ export async function fetchGuildMember(
   };
 }
 
-// Notification failures are swallowed, a missed ping must never block a
-// status transition.
+// Notification failures never block a status transition, but they're always
+// logged (console.error, visible in Vercel's function logs) so a silent
+// Discord-side failure doesn't look identical to "everything's fine."
 export async function sendChannelMessage(content: string) {
   if (!NOTIFICATIONS_ENABLED) return;
   try {
-    await fetch(
+    const res = await fetch(
       `${API}/channels/${process.env.DISCORD_NOTIFICATION_CHANNEL_ID}/messages`,
       {
         method: "POST",
@@ -63,7 +64,12 @@ export async function sendChannelMessage(content: string) {
         }),
       }
     );
-  } catch {}
+    if (!res.ok) {
+      console.error("sendChannelMessage failed:", res.status, await res.text());
+    }
+  } catch (err) {
+    console.error("sendChannelMessage threw:", err);
+  }
 }
 
 export async function sendDirectMessage(discordId: string, content: string) {
@@ -74,14 +80,22 @@ export async function sendDirectMessage(discordId: string, content: string) {
       headers: botHeaders(),
       body: JSON.stringify({ recipient_id: discordId }),
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      console.error("sendDirectMessage: open DM channel failed:", res.status, await res.text());
+      return;
+    }
     const channel = await res.json();
-    await fetch(`${API}/channels/${channel.id}/messages`, {
+    const msgRes = await fetch(`${API}/channels/${channel.id}/messages`, {
       method: "POST",
       headers: botHeaders(),
       body: JSON.stringify({ content }),
     });
-  } catch {}
+    if (!msgRes.ok) {
+      console.error("sendDirectMessage: send failed:", msgRes.status, await msgRes.text());
+    }
+  } catch (err) {
+    console.error("sendDirectMessage threw:", err);
+  }
 }
 
 // A space right after "@" breaks Discord's mention syntax entirely, so the
