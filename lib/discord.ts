@@ -110,6 +110,16 @@ export const paymentManagerMention = () =>
     ? `<@&${process.env.DISCORD_PAYMENT_MANAGER_ROLE_ID}>`
     : `<@ &${process.env.DISCORD_PAYMENT_MANAGER_ROLE_ID}>`;
 
+// A discrete masked link appended to notifications so the reader can jump
+// straight to the request instead of opening the app and hunting for it.
+// Discord renders `[label](url)` as a plain clickable word in normal
+// message content, not just inside embeds. Degrades to nothing if APP_URL
+// isn't set (e.g. local dev, where notifications are off anyway).
+export function requestLink(requestId: string, label = "View"): string {
+  const base = process.env.APP_URL;
+  return base ? ` · [${label}](${base}/requests/${requestId})` : "";
+}
+
 // subcommittee/committee -> member, committee -> exec, plus payment_manager.
 export function mapDiscordRoles(roleIds: string[]): Role[] {
   const has = (env: string | undefined) => !!env && roleIds.includes(env);
