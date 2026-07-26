@@ -2,6 +2,13 @@
 
 import { useRef, useState } from "react";
 
+const MAX_FILES = 3;
+const MAX_SIZE_BYTES = 8 * 1024 * 1024;
+
+function formatSize(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function ReceiptField({
   label,
   required = true,
@@ -10,8 +17,45 @@ export function ReceiptField({
   required?: boolean;
 }) {
   const [inDrive, setInDrive] = useState(false);
-  const [fileName, setFileName] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // The hidden input is the actual field the form submits (multiple files
+  // under the same "receipt" name); a DataTransfer keeps its real .files
+  // list in sync with our own state, so the chips UI can add/remove freely
+  // while everything downstream (including native `required` validation)
+  // still sees a normal file input.
+  function syncInput(next: File[]) {
+    const dt = new DataTransfer();
+    next.forEach((f) => dt.items.add(f));
+    if (inputRef.current) inputRef.current.files = dt.files;
+  }
+
+  function addFiles(picked: FileList | null) {
+    if (!picked) return;
+    setError(null);
+    const incoming = Array.from(picked);
+    const tooBig = incoming.find((f) => f.size > MAX_SIZE_BYTES);
+    if (tooBig) {
+      setError(`"${tooBig.name}" is too large (max ${formatSize(MAX_SIZE_BYTES)} per file)`);
+      return;
+    }
+    const combined = [...files, ...incoming];
+    if (combined.length > MAX_FILES) {
+      setError(`Up to ${MAX_FILES} files allowed`);
+      return;
+    }
+    setFiles(combined);
+    syncInput(combined);
+  }
+
+  function removeFile(index: number) {
+    setError(null);
+    const next = files.filter((_, i) => i !== index);
+    setFiles(next);
+    syncInput(next);
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-2">
@@ -30,25 +74,52 @@ export function ReceiptField({
           ref={inputRef}
           name="receipt"
           type="file"
+          multiple
           accept="application/pdf,image/*"
-          required={required && !inDrive}
+          required={required && !inDrive && files.length === 0}
           disabled={inDrive}
-          onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
+          onChange={(e) => {
+            addFiles(e.target.files);
+            e.target.value = "";
+          }}
           className="sr-only"
         />
         <span className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            disabled={inDrive}
+            disabled={inDrive || files.length >= MAX_FILES}
             onClick={() => inputRef.current?.click()}
             className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             Choose file
           </button>
           <span className="text-sm text-ink-soft">
-            {fileName ?? "No file chosen"}
+            {files.length === 0
+              ? "No file chosen"
+              : `${files.length}/${MAX_FILES} files`}
           </span>
         </span>
+        {files.length > 0 && (
+          <ul className="flex flex-col gap-1">
+            {files.map((file, i) => (
+              <li
+                key={`${file.name}-${i}`}
+                className="flex items-center justify-between gap-2 rounded-md border border-line bg-bg px-2.5 py-1.5 text-xs"
+              >
+                <span className="truncate text-ink-soft">{file.name}</span>
+                <button
+                  type="button"
+                  onClick={() => removeFile(i)}
+                  aria-label={`Remove ${file.name}`}
+                  className="flex-none text-ink-soft transition-colors hover:text-[#f0a3a3]"
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {error && <p className="text-xs text-[#f0a3a3]">{error}</p>}
       </span>
       <label className="flex items-start gap-2 text-xs text-ink-soft">
         <input

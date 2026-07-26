@@ -32,7 +32,7 @@ interface RequestDetail {
   amount_estimated: number;
   amount_claimed: number | null;
   category: Category;
-  receipt_path: string | null;
+  receipt_paths: string[];
   receipt_in_drive: boolean;
   status: RequestStatus;
   created_at: string;
@@ -70,7 +70,7 @@ export default async function RequestPage({
     supabase
       .from("requests")
       .select(
-        "id, submitter_id, title, description, amount_estimated, amount_claimed, category, receipt_path, receipt_in_drive, status, created_at, event:events (title), submitter:app_users!requests_submitter_id_fkey (display_name)"
+        "id, submitter_id, title, description, amount_estimated, amount_claimed, category, receipt_paths, receipt_in_drive, status, created_at, event:events (title), submitter:app_users!requests_submitter_id_fkey (display_name)"
       )
       .eq("id", id)
       .maybeSingle(),
@@ -93,21 +93,31 @@ export default async function RequestPage({
   const request = data as unknown as RequestDetail;
   const history = (historyData ?? []) as unknown as HistoryRow[];
 
-  // Receipt is behind short-lived signed URLs; anyone who can see the
-  // request row is allowed to see its receipt. Two URLs: one to view inline,
-  // one with `download` set so it saves as a file instead of opening in-tab.
-  let receiptUrl: string | null = null;
-  let receiptDownloadUrl: string | null = null;
-  if (request.receipt_path) {
+  // Each receipt is behind short-lived signed URLs; anyone who can see the
+  // request row is allowed to see its receipts. Two URLs per file: one to
+  // view inline, one with `download` set so it saves as a file instead of
+  // opening in-tab.
+  const receipts: { name: string; viewUrl: string; downloadUrl: string }[] = [];
+  if (request.receipt_paths.length > 0) {
     const receiptsBucket = createAdminClient().storage.from("receipts");
-    const [{ data: viewSigned }, { data: downloadSigned }] = await Promise.all([
-      receiptsBucket.createSignedUrl(request.receipt_path, 60 * 60),
-      receiptsBucket.createSignedUrl(request.receipt_path, 60 * 60, {
-        download: true,
-      }),
-    ]);
-    receiptUrl = viewSigned?.signedUrl ?? null;
-    receiptDownloadUrl = downloadSigned?.signedUrl ?? null;
+    const signed = await Promise.all(
+      request.receipt_paths.map((path) =>
+        Promise.all([
+          receiptsBucket.createSignedUrl(path, 60 * 60),
+          receiptsBucket.createSignedUrl(path, 60 * 60, { download: true }),
+        ])
+      )
+    );
+    request.receipt_paths.forEach((path, i) => {
+      const [{ data: viewSigned }, { data: downloadSigned }] = signed[i];
+      if (viewSigned?.signedUrl) {
+        receipts.push({
+          name: path.split("/").pop()?.replace(/^\d+-/, "") ?? `Receipt ${i + 1}`,
+          viewUrl: viewSigned.signedUrl,
+          downloadUrl: downloadSigned?.signedUrl ?? viewSigned.signedUrl,
+        });
+      }
+    });
   }
 
   const isSubmitter = request.submitter_id === user.id;
@@ -151,25 +161,32 @@ export default async function RequestPage({
             </dd>
           </div>
           <div>
-            <dt className="text-ink-soft">Receipt</dt>
+            <dt className="text-ink-soft">Receipt{receipts.length > 1 ? "s" : ""}</dt>
             <dd className="font-medium">
-              {receiptUrl ? (
-                <span className="flex items-center gap-3">
-                  <a
-                    href={receiptUrl}
-                    target="_blank"
-                    className="text-accent underline underline-offset-2"
-                    rel="noreferrer"
-                  >
-                    View
-                  </a>
-                  <a
-                    href={receiptDownloadUrl ?? receiptUrl}
-                    className="text-accent underline underline-offset-2"
-                  >
-                    Download
-                  </a>
-                </span>
+              {receipts.length > 0 ? (
+                <ul className="flex flex-col gap-1">
+                  {receipts.map((receipt, i) => (
+                    <li key={i} className="flex items-center gap-3">
+                      <span className="max-w-[10rem] truncate text-xs text-ink-soft">
+                        {receipt.name}
+                      </span>
+                      <a
+                        href={receipt.viewUrl}
+                        target="_blank"
+                        className="text-accent underline underline-offset-2"
+                        rel="noreferrer"
+                      >
+                        View
+                      </a>
+                      <a
+                        href={receipt.downloadUrl}
+                        className="text-accent underline underline-offset-2"
+                      >
+                        Download
+                      </a>
+                    </li>
+                  ))}
+                </ul>
               ) : request.receipt_in_drive ? (
                 "Uploaded to Drive"
               ) : (

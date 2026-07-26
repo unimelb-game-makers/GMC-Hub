@@ -74,6 +74,45 @@ function parseAmount(value: FormDataEntryValue | null): number {
   return Math.round(amount * 100) / 100;
 }
 
+const MAX_RECEIPT_FILES = 3;
+const MAX_RECEIPT_SIZE_BYTES = 8 * 1024 * 1024;
+
+// Uploads up to MAX_RECEIPT_FILES receipt files to Supabase Storage and
+// returns their paths. Mirrors the client-side cap in receipt-field.tsx —
+// enforced again here since the client check is only a UX convenience, not
+// a security/consistency boundary.
+async function uploadReceipts(
+  formData: FormData,
+  userId: string,
+  requestId: string
+): Promise<string[]> {
+  const files = formData
+    .getAll("receipt")
+    .filter((f): f is File => f instanceof File && f.size > 0);
+  if (files.length > MAX_RECEIPT_FILES) {
+    throw new Error(`Up to ${MAX_RECEIPT_FILES} receipt files allowed`);
+  }
+  for (const file of files) {
+    if (file.size > MAX_RECEIPT_SIZE_BYTES) {
+      throw new Error(`"${file.name}" is too large (max 8 MB per file)`);
+    }
+  }
+
+  const admin = createAdminClient();
+  const paths: string[] = [];
+  for (const file of files) {
+    const path = `${userId}/${requestId}/${Date.now()}-${file.name}`;
+    const { error } = await admin.storage
+      .from("receipts")
+      .upload(path, Buffer.from(await file.arrayBuffer()), {
+        contentType: file.type || "application/octet-stream",
+      });
+    if (error) throw new Error(error.message);
+    paths.push(path);
+  }
+  return paths;
+}
+
 // One of two payout methods: PayID, or BSB + account number (digits
 // normalised, spaces/dashes ok). Exactly one method's fields are stored,
 // matching the DB check constraint.
@@ -212,29 +251,20 @@ export async function submitClaim(requestId: string, formData: FormData) {
 
   const amount = parseAmount(formData.get("amount_claimed"));
   const receiptInDrive = !!formData.get("receipt_in_drive");
-  const receipt = formData.get("receipt");
 
-  let receiptPath: string | null = null;
+  let receiptPaths: string[] = [];
   if (!receiptInDrive) {
-    if (!(receipt instanceof File) || receipt.size === 0) {
+    receiptPaths = await uploadReceipts(formData, user.id, request.id);
+    if (receiptPaths.length === 0) {
       throw new Error(
         "A receipt is required (attach a file, or confirm it's in the Drive folder)"
       );
     }
-    const admin = createAdminClient();
-    const path = `${user.id}/${request.id}/${Date.now()}-${receipt.name}`;
-    const { error: uploadError } = await admin.storage
-      .from("receipts")
-      .upload(path, Buffer.from(await receipt.arrayBuffer()), {
-        contentType: receipt.type || "application/octet-stream",
-      });
-    if (uploadError) throw new Error(uploadError.message);
-    receiptPath = path;
   }
 
   await transition(request, user, "claim_submitted", {
     amount_claimed: amount,
-    receipt_path: receiptPath,
+    receipt_paths: receiptPaths,
     receipt_in_drive: receiptInDrive,
   });
 
@@ -322,21 +352,15 @@ export async function resubmitClaim(requestId: string, formData: FormData) {
   const fields: Record<string, unknown> = { amount_claimed: amount };
 
   const receiptInDrive = !!formData.get("receipt_in_drive");
-  const receipt = formData.get("receipt");
   if (receiptInDrive) {
-    fields.receipt_path = null;
+    fields.receipt_paths = [];
     fields.receipt_in_drive = true;
-  } else if (receipt instanceof File && receipt.size > 0) {
-    const admin = createAdminClient();
-    const path = `${user.id}/${request.id}/${Date.now()}-${receipt.name}`;
-    const { error } = await admin.storage
-      .from("receipts")
-      .upload(path, Buffer.from(await receipt.arrayBuffer()), {
-        contentType: receipt.type || "application/octet-stream",
-      });
-    if (error) throw new Error(error.message);
-    fields.receipt_path = path;
-    fields.receipt_in_drive = false;
+  } else {
+    const receiptPaths = await uploadReceipts(formData, user.id, request.id);
+    if (receiptPaths.length > 0) {
+      fields.receipt_paths = receiptPaths;
+      fields.receipt_in_drive = false;
+    }
   }
 
   await transition(request, user, "claim_submitted", fields);
