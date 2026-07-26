@@ -12,6 +12,7 @@ import type { BankDetails, Category, RequestStatus } from "@/lib/types";
 import { Nav } from "@/components/nav";
 import { StatusBadge } from "@/components/status-badge";
 import { PaymentMethodFields } from "@/components/payment-method-fields";
+import { ReceiptField } from "@/components/receipt-field";
 import { SubmitButton } from "@/components/submit-button";
 import {
   approveSpend,
@@ -32,6 +33,7 @@ interface RequestDetail {
   amount_claimed: number | null;
   category: Category;
   receipt_path: string | null;
+  receipt_in_drive: boolean;
   status: RequestStatus;
   created_at: string;
   event: { title: string } | null;
@@ -68,7 +70,7 @@ export default async function RequestPage({
     supabase
       .from("requests")
       .select(
-        "id, submitter_id, title, description, amount_estimated, amount_claimed, category, receipt_path, status, created_at, event:events (title), submitter:app_users!requests_submitter_id_fkey (display_name)"
+        "id, submitter_id, title, description, amount_estimated, amount_claimed, category, receipt_path, receipt_in_drive, status, created_at, event:events (title), submitter:app_users!requests_submitter_id_fkey (display_name)"
       )
       .eq("id", id)
       .maybeSingle(),
@@ -91,14 +93,21 @@ export default async function RequestPage({
   const request = data as unknown as RequestDetail;
   const history = (historyData ?? []) as unknown as HistoryRow[];
 
-  // Receipt is behind a short-lived signed URL; anyone who can see the
-  // request row is allowed to see its receipt.
+  // Receipt is behind short-lived signed URLs; anyone who can see the
+  // request row is allowed to see its receipt. Two URLs: one to view inline,
+  // one with `download` set so it saves as a file instead of opening in-tab.
   let receiptUrl: string | null = null;
+  let receiptDownloadUrl: string | null = null;
   if (request.receipt_path) {
-    const { data: signed } = await createAdminClient()
-      .storage.from("receipts")
-      .createSignedUrl(request.receipt_path, 60 * 60);
-    receiptUrl = signed?.signedUrl ?? null;
+    const receiptsBucket = createAdminClient().storage.from("receipts");
+    const [{ data: viewSigned }, { data: downloadSigned }] = await Promise.all([
+      receiptsBucket.createSignedUrl(request.receipt_path, 60 * 60),
+      receiptsBucket.createSignedUrl(request.receipt_path, 60 * 60, {
+        download: true,
+      }),
+    ]);
+    receiptUrl = viewSigned?.signedUrl ?? null;
+    receiptDownloadUrl = downloadSigned?.signedUrl ?? null;
   }
 
   const isSubmitter = request.submitter_id === user.id;
@@ -145,14 +154,24 @@ export default async function RequestPage({
             <dt className="text-ink-soft">Receipt</dt>
             <dd className="font-medium">
               {receiptUrl ? (
-                <a
-                  href={receiptUrl}
-                  target="_blank"
-                  className="text-accent underline underline-offset-2"
-                  rel="noreferrer"
-                >
-                  View
-                </a>
+                <span className="flex items-center gap-3">
+                  <a
+                    href={receiptUrl}
+                    target="_blank"
+                    className="text-accent underline underline-offset-2"
+                    rel="noreferrer"
+                  >
+                    View
+                  </a>
+                  <a
+                    href={receiptDownloadUrl ?? receiptUrl}
+                    className="text-accent underline underline-offset-2"
+                  >
+                    Download
+                  </a>
+                </span>
+              ) : request.receipt_in_drive ? (
+                "Uploaded to Drive"
               ) : (
                 "—"
               )}
@@ -228,16 +247,7 @@ export default async function RequestPage({
                     className={inputClass}
                   />
                 </label>
-                <label className="flex flex-1 flex-col gap-1 text-sm font-medium">
-                  Receipt (PDF or image)
-                  <input
-                    name="receipt"
-                    type="file"
-                    accept="application/pdf,image/*"
-                    required
-                    className="text-sm"
-                  />
-                </label>
+                <ReceiptField label="Receipt (PDF or image)" required />
                 <SubmitButton className={primaryButton}>
                   Submit claim
                 </SubmitButton>
@@ -360,15 +370,7 @@ export default async function RequestPage({
                       className={inputClass}
                     />
                   </label>
-                  <label className="flex flex-1 flex-col gap-1 text-sm font-medium">
-                    New receipt (optional)
-                    <input
-                      name="receipt"
-                      type="file"
-                      accept="application/pdf,image/*"
-                      className="text-sm"
-                    />
-                  </label>
+                  <ReceiptField label="New receipt (optional)" required={false} />
                   <SubmitButton className={primaryButton}>
                     Resubmit claim
                   </SubmitButton>

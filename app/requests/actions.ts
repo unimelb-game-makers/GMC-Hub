@@ -211,23 +211,31 @@ export async function submitClaim(requestId: string, formData: FormData) {
   if (request.status !== "approved") throw new Error("Wrong status");
 
   const amount = parseAmount(formData.get("amount_claimed"));
+  const receiptInDrive = !!formData.get("receipt_in_drive");
   const receipt = formData.get("receipt");
-  if (!(receipt instanceof File) || receipt.size === 0) {
-    throw new Error("A receipt is required");
-  }
 
-  const admin = createAdminClient();
-  const path = `${user.id}/${request.id}/${Date.now()}-${receipt.name}`;
-  const { error: uploadError } = await admin.storage
-    .from("receipts")
-    .upload(path, Buffer.from(await receipt.arrayBuffer()), {
-      contentType: receipt.type || "application/octet-stream",
-    });
-  if (uploadError) throw new Error(uploadError.message);
+  let receiptPath: string | null = null;
+  if (!receiptInDrive) {
+    if (!(receipt instanceof File) || receipt.size === 0) {
+      throw new Error(
+        "A receipt is required (attach a file, or confirm it's in the Drive folder)"
+      );
+    }
+    const admin = createAdminClient();
+    const path = `${user.id}/${request.id}/${Date.now()}-${receipt.name}`;
+    const { error: uploadError } = await admin.storage
+      .from("receipts")
+      .upload(path, Buffer.from(await receipt.arrayBuffer()), {
+        contentType: receipt.type || "application/octet-stream",
+      });
+    if (uploadError) throw new Error(uploadError.message);
+    receiptPath = path;
+  }
 
   await transition(request, user, "claim_submitted", {
     amount_claimed: amount,
-    receipt_path: path,
+    receipt_path: receiptPath,
+    receipt_in_drive: receiptInDrive,
   });
 
   await sendChannelMessage(
@@ -313,8 +321,12 @@ export async function resubmitClaim(requestId: string, formData: FormData) {
   const amount = parseAmount(formData.get("amount_claimed"));
   const fields: Record<string, unknown> = { amount_claimed: amount };
 
+  const receiptInDrive = !!formData.get("receipt_in_drive");
   const receipt = formData.get("receipt");
-  if (receipt instanceof File && receipt.size > 0) {
+  if (receiptInDrive) {
+    fields.receipt_path = null;
+    fields.receipt_in_drive = true;
+  } else if (receipt instanceof File && receipt.size > 0) {
     const admin = createAdminClient();
     const path = `${user.id}/${request.id}/${Date.now()}-${receipt.name}`;
     const { error } = await admin.storage
@@ -324,6 +336,7 @@ export async function resubmitClaim(requestId: string, formData: FormData) {
       });
     if (error) throw new Error(error.message);
     fields.receipt_path = path;
+    fields.receipt_in_drive = false;
   }
 
   await transition(request, user, "claim_submitted", fields);
