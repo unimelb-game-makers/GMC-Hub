@@ -1,4 +1,4 @@
-import type { Role } from "@/lib/types";
+import { ROLES, type Role } from "@/lib/types";
 
 // Discord REST helpers, server-only. Role sync requires the bot to be in the
 // guild with the Server Members Intent enabled.
@@ -14,11 +14,6 @@ const SUPPRESS_EMBEDS = 1 << 2;
 // Local dev runs against real Discord roles (auth needs them) but must never
 // actually notify real people. Role sync (fetchGuildMember) is unaffected.
 const NOTIFICATIONS_ENABLED = process.env.DISCORD_NOTIFICATIONS_ENABLED !== "false";
-
-// While testing in production: channel messages still post and still show
-// the role name as text, but Discord won't actually ping the role's members.
-// Flip DISCORD_MENTIONS_ENABLED back to unset/"true" once testing is done.
-const MENTIONS_ENABLED = process.env.DISCORD_MENTIONS_ENABLED !== "false";
 
 function botHeaders() {
   return {
@@ -66,7 +61,7 @@ export async function sendChannelMessage(content: string) {
         headers: botHeaders(),
         body: JSON.stringify({
           content,
-          allowed_mentions: { parse: MENTIONS_ENABLED ? ["roles"] : [] },
+          allowed_mentions: { parse: ["roles"] },
           flags: SUPPRESS_EMBEDS,
         }),
       }
@@ -105,17 +100,10 @@ export async function sendDirectMessage(discordId: string, content: string) {
   }
 }
 
-// A space right after "@" breaks Discord's mention syntax entirely, so the
-// role name never actually pings, regardless of allowed_mentions handling.
-// Revert to the real `<@&ID>` form once testing is done.
 export const committeeMention = () =>
-  MENTIONS_ENABLED
-    ? `<@&${process.env.DISCORD_COMMITTEE_ROLE_ID}>`
-    : `<@ &${process.env.DISCORD_COMMITTEE_ROLE_ID}>`;
+  `<@&${process.env.DISCORD_COMMITTEE_ROLE_ID}>`;
 export const paymentManagerMention = () =>
-  MENTIONS_ENABLED
-    ? `<@&${process.env.DISCORD_PAYMENT_MANAGER_ROLE_ID}>`
-    : `<@ &${process.env.DISCORD_PAYMENT_MANAGER_ROLE_ID}>`;
+  `<@&${process.env.DISCORD_PAYMENT_MANAGER_ROLE_ID}>`;
 
 // A discrete masked link appended to notifications so the reader can jump
 // straight to the request instead of opening the app and hunting for it.
@@ -127,19 +115,26 @@ export function requestLink(requestId: string, label = "View"): string {
   return base ? ` · [${label}](${base}/requests/${requestId})` : "";
 }
 
-// subcommittee/committee -> member, committee -> exec, plus payment_manager.
+// Discord role -> app roles, hierarchical: payment_manager > exec > member.
+// A more senior role grants everything the ones below it can do, so a user
+// who holds only the payment-manager Discord role still gets exec + member,
+// and a committee (exec) member still gets member. Mapping:
+//   subcommittee                       -> member
+//   committee                          -> member + exec
+//   payment_manager                    -> member + exec + payment_manager
 export function mapDiscordRoles(roleIds: string[]): Role[] {
   const has = (env: string | undefined) => !!env && roleIds.includes(env);
-  const roles: Role[] = [];
-  if (
-    has(process.env.DISCORD_SUBCOMMITTEE_ROLE_ID) ||
-    has(process.env.DISCORD_COMMITTEE_ROLE_ID)
-  ) {
-    roles.push("member");
-  }
-  if (has(process.env.DISCORD_COMMITTEE_ROLE_ID)) roles.push("exec");
-  if (has(process.env.DISCORD_PAYMENT_MANAGER_ROLE_ID)) {
-    roles.push("payment_manager");
-  }
-  return roles;
+  const roles = new Set<Role>();
+
+  const isPaymentManager = has(process.env.DISCORD_PAYMENT_MANAGER_ROLE_ID);
+  const isExec = has(process.env.DISCORD_COMMITTEE_ROLE_ID) || isPaymentManager;
+  const isMember =
+    has(process.env.DISCORD_SUBCOMMITTEE_ROLE_ID) || isExec;
+
+  if (isMember) roles.add("member");
+  if (isExec) roles.add("exec");
+  if (isPaymentManager) roles.add("payment_manager");
+
+  // Return in a stable, canonical order (member, exec, payment_manager).
+  return ROLES.filter((r) => roles.has(r));
 }
