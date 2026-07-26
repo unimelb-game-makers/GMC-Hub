@@ -1,4 +1,4 @@
-import type { Role } from "@/lib/types";
+import { ROLES, type Role } from "@/lib/types";
 
 // Discord REST helpers, server-only. Role sync requires the bot to be in the
 // guild with the Server Members Intent enabled.
@@ -127,19 +127,26 @@ export function requestLink(requestId: string, label = "View"): string {
   return base ? ` · [${label}](${base}/requests/${requestId})` : "";
 }
 
-// subcommittee/committee -> member, committee -> exec, plus payment_manager.
+// Discord role -> app roles, hierarchical: payment_manager > exec > member.
+// A more senior role grants everything the ones below it can do, so a user
+// who holds only the payment-manager Discord role still gets exec + member,
+// and a committee (exec) member still gets member. Mapping:
+//   subcommittee                       -> member
+//   committee                          -> member + exec
+//   payment_manager                    -> member + exec + payment_manager
 export function mapDiscordRoles(roleIds: string[]): Role[] {
   const has = (env: string | undefined) => !!env && roleIds.includes(env);
-  const roles: Role[] = [];
-  if (
-    has(process.env.DISCORD_SUBCOMMITTEE_ROLE_ID) ||
-    has(process.env.DISCORD_COMMITTEE_ROLE_ID)
-  ) {
-    roles.push("member");
-  }
-  if (has(process.env.DISCORD_COMMITTEE_ROLE_ID)) roles.push("exec");
-  if (has(process.env.DISCORD_PAYMENT_MANAGER_ROLE_ID)) {
-    roles.push("payment_manager");
-  }
-  return roles;
+  const roles = new Set<Role>();
+
+  const isPaymentManager = has(process.env.DISCORD_PAYMENT_MANAGER_ROLE_ID);
+  const isExec = has(process.env.DISCORD_COMMITTEE_ROLE_ID) || isPaymentManager;
+  const isMember =
+    has(process.env.DISCORD_SUBCOMMITTEE_ROLE_ID) || isExec;
+
+  if (isMember) roles.add("member");
+  if (isExec) roles.add("exec");
+  if (isPaymentManager) roles.add("payment_manager");
+
+  // Return in a stable, canonical order (member, exec, payment_manager).
+  return ROLES.filter((r) => roles.has(r));
 }

@@ -47,12 +47,24 @@ async function transition(
   paidAt: string | null = null
 ) {
   const admin = createAdminClient();
-  const { error } = await admin
+  // Compare-and-swap on status: the .eq("status", ...) means a concurrent
+  // action (two execs approving at once, a double-submit, a stale tab) that
+  // already moved this request will match zero rows here. Supabase does NOT
+  // error on a zero-row update, so we check the returned rows and bail
+  // before writing history or notifying — otherwise the same transition gets
+  // recorded and announced twice.
+  const { data: updated, error } = await admin
     .from("requests")
     .update({ status: to, ...fields })
     .eq("id", request.id)
-    .eq("status", request.status);
+    .eq("status", request.status)
+    .select("id");
   if (error) throw new Error(error.message);
+  if (!updated || updated.length === 0) {
+    throw new Error(
+      "This request was just updated by someone else. Refresh to see its current state."
+    );
+  }
 
   await admin.from("status_history").insert({
     request_id: request.id,
