@@ -5,6 +5,12 @@ import type { Role } from "@/lib/types";
 
 const API = "https://discord.com/api/v10";
 
+// Discord message flag: suppresses the auto-generated link-preview embed
+// (the big card with title/description/thumbnail) for any URL in the
+// message, while the link itself stays fully clickable. Used on every
+// message since they all carry the requestLink() "View" link now.
+const SUPPRESS_EMBEDS = 1 << 2;
+
 // Local dev runs against real Discord roles (auth needs them) but must never
 // actually notify real people. Role sync (fetchGuildMember) is unaffected.
 const NOTIFICATIONS_ENABLED = process.env.DISCORD_NOTIFICATIONS_ENABLED !== "false";
@@ -61,6 +67,7 @@ export async function sendChannelMessage(content: string) {
         body: JSON.stringify({
           content,
           allowed_mentions: { parse: MENTIONS_ENABLED ? ["roles"] : [] },
+          flags: SUPPRESS_EMBEDS,
         }),
       }
     );
@@ -88,7 +95,7 @@ export async function sendDirectMessage(discordId: string, content: string) {
     const msgRes = await fetch(`${API}/channels/${channel.id}/messages`, {
       method: "POST",
       headers: botHeaders(),
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, flags: SUPPRESS_EMBEDS }),
     });
     if (!msgRes.ok) {
       console.error("sendDirectMessage: send failed:", msgRes.status, await msgRes.text());
