@@ -57,6 +57,15 @@ export function ReceiptField({
     syncInput(next);
   }
 
+  function onInvalid(e: React.FormEvent<HTMLInputElement>) {
+    // The input is visually hidden (sr-only), so the browser's native
+    // validation bubble anchors to its off-screen position instead of the
+    // visible "Choose file" button. Suppress it and show our own inline
+    // message in the right place instead.
+    e.preventDefault();
+    setError("Please select one or more files, or confirm it's in the Drive folder.");
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-2">
       <span className="flex flex-col gap-1 text-sm font-medium">
@@ -78,10 +87,8 @@ export function ReceiptField({
           accept="application/pdf,image/*"
           required={required && !inDrive && files.length === 0}
           disabled={inDrive}
-          onChange={(e) => {
-            addFiles(e.target.files);
-            e.target.value = "";
-          }}
+          onChange={(e) => addFiles(e.target.files)}
+          onInvalid={onInvalid}
           className="sr-only"
         />
         <span className="flex flex-wrap items-center gap-3">
@@ -126,7 +133,10 @@ export function ReceiptField({
           type="checkbox"
           name="receipt_in_drive"
           checked={inDrive}
-          onChange={(e) => setInDrive(e.target.checked)}
+          onChange={(e) => {
+            setInDrive(e.target.checked);
+            setError(null);
+          }}
           className="mt-0.5 accent-accent"
         />
         I&apos;ve uploaded this to the correct event&apos;s folder in the
