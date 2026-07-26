@@ -9,6 +9,7 @@ import {
   sendDirectMessage,
   committeeMention,
   paymentManagerMention,
+  requestLink,
 } from "@/lib/discord";
 import { formatAUD } from "@/lib/format";
 import { CATEGORIES, type Category, type RequestStatus } from "@/lib/types";
@@ -213,7 +214,8 @@ export async function createRequest(formData: FormData) {
   await sendChannelMessage(
     `${committeeMention()} New spend request from **${user.display_name}**: ` +
       `**${title}** (${formatAUD(amount)}) under *${event.title}*, needs exec approval.` +
-      (description ? `\n> ${description}` : "")
+      (description ? `\n> ${description}` : "") +
+      requestLink(request.id)
   );
 
   revalidatePath("/");
@@ -232,7 +234,8 @@ export async function approveSpend(requestId: string) {
     request.submitter.discord_id,
     `Your spend request **${request.title}** (${formatAUD(request.amount_estimated)}) was approved. ` +
       `Reminder: you need committee approval before making the payment. ` +
-      `Once you've paid, submit your claim with the receipt.`
+      `Once you've paid, submit your claim with the receipt.` +
+      requestLink(request.id)
   );
 }
 
@@ -252,7 +255,8 @@ export async function rejectRequest(requestId: string, formData: FormData) {
   await sendDirectMessage(
     request.submitter.discord_id,
     `Your request **${request.title}** was rejected: ${reason}\n` +
-      `You can revise and resubmit it in the app.`
+      `You can revise and resubmit it in the app.` +
+      requestLink(request.id)
   );
 }
 
@@ -284,7 +288,8 @@ export async function submitClaim(requestId: string, formData: FormData) {
 
   await sendChannelMessage(
     `${committeeMention()} **${user.display_name}** submitted a claim for ` +
-      `**${request.title}** (${formatAUD(amount)}), needs exec approval.`
+      `**${request.title}** (${formatAUD(amount)}), needs exec approval.` +
+      requestLink(request.id)
   );
 }
 
@@ -298,7 +303,8 @@ export async function approveClaim(requestId: string) {
   await transition(request, user, "claim_approved");
   await sendChannelMessage(
     `${paymentManagerMention()} Claim approved for **${request.title}** ` +
-      `(${formatAUD(request.amount_claimed ?? 0)}, ${request.submitter.display_name}), ready to reimburse.`
+      `(${formatAUD(request.amount_claimed ?? 0)}, ${request.submitter.display_name}), ready to reimburse.` +
+      requestLink(request.id)
   );
 }
 
@@ -321,7 +327,8 @@ export async function confirmReimbursed(requestId: string, formData: FormData) {
   await sendDirectMessage(
     request.submitter.discord_id,
     `You've been reimbursed ${formatAUD(request.amount_claimed ?? 0)} for **${request.title}**.` +
-      (note ? `\n> ${note}` : "")
+      (note ? `\n> ${note}` : "") +
+      requestLink(request.id)
   );
 }
 
@@ -354,7 +361,8 @@ export async function resubmitSpend(requestId: string, formData: FormData) {
   await sendChannelMessage(
     `${committeeMention()} **${user.display_name}** resubmitted spend request ` +
       `**${title}** (${formatAUD(amount)}), needs exec approval.` +
-      (description ? `\n> ${description}` : "")
+      (description ? `\n> ${description}` : "") +
+      requestLink(request.id)
   );
 }
 
@@ -385,6 +393,7 @@ export async function resubmitClaim(requestId: string, formData: FormData) {
   });
   await sendChannelMessage(
     `${committeeMention()} **${user.display_name}** resubmitted their claim for ` +
-      `**${request.title}** (${formatAUD(amount)}), needs exec approval.`
+      `**${request.title}** (${formatAUD(amount)}), needs exec approval.` +
+      requestLink(request.id)
   );
 }
