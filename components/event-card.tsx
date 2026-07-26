@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { StatusBadge } from "@/components/status-badge";
 import { SubmitButton } from "@/components/submit-button";
+import { DeleteEventButton } from "@/components/delete-event-button";
 import { REQUEST_STATUSES, type RequestStatus } from "@/lib/types";
 
 const dateFormatter = new Intl.DateTimeFormat("en-AU", {
@@ -134,27 +135,11 @@ export function EventCard({
                 </SubmitButton>
               </form>
             </div>
-            {hasRequests ? (
-              <span
-                title="Can't delete an event with requests under it. Close it instead."
-                className="cursor-not-allowed rounded-md border border-line px-3 py-1.5 text-xs font-medium text-ink-soft/50"
-              >
-                Delete
-              </span>
-            ) : (
-              <form
-                action={onDelete}
-                onSubmit={(e) => {
-                  if (!confirm(`Delete "${event.title}"? This can't be undone.`)) {
-                    e.preventDefault();
-                  }
-                }}
-              >
-                <SubmitButton className="rounded-md border border-[#5a3232] px-3 py-1.5 text-xs font-medium text-[#f0a3a3] transition-colors hover:bg-[#2a1818]">
-                  Delete
-                </SubmitButton>
-              </form>
-            )}
+            <DeleteEventButton
+              eventTitle={event.title}
+              hasRequests={hasRequests}
+              onDelete={onDelete}
+            />
           </div>
         )}
       </div>

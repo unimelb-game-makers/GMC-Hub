@@ -1,14 +1,6 @@
 "use client";
 
-import { useState } from "react";
-
-// Styled so the native file picker's button is obviously clickable (matches
-// the accent button elsewhere) instead of blending into the page.
-const fileInputClass =
-  "text-sm text-ink-soft file:mr-3 file:cursor-pointer file:rounded-md " +
-  "file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-sm " +
-  "file:font-medium file:text-accent-ink file:transition-colors " +
-  "hover:file:bg-accent-hover";
+import { useRef, useState } from "react";
 
 export function ReceiptField({
   label,
@@ -18,20 +10,46 @@ export function ReceiptField({
   required?: boolean;
 }) {
   const [inDrive, setInDrive] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="flex flex-1 flex-col gap-2">
-      <label className="flex flex-col gap-1 text-sm font-medium">
+      <span className="flex flex-col gap-1 text-sm font-medium">
         {label}
+        {/* Real <input type="file"> stays in the DOM (so it still submits
+            with the form) but visually hidden; a normal button drives it via
+            .click(). More reliable across browsers/mobile than styling the
+            native file-picker button directly. accept covers both
+            camera/gallery photos and PDFs — mobile browsers show the full
+            picker (gallery, camera, files) for image/* automatically.
+            sr-only, not `hidden`/display:none: a display:none input is
+            excluded from HTML5 constraint validation, so `required` would
+            silently stop blocking submission. */}
         <input
+          ref={inputRef}
           name="receipt"
           type="file"
           accept="application/pdf,image/*"
           required={required && !inDrive}
           disabled={inDrive}
-          className={fileInputClass}
+          onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
+          className="sr-only"
         />
-      </label>
+        <span className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            disabled={inDrive}
+            onClick={() => inputRef.current?.click()}
+            className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Choose file
+          </button>
+          <span className="text-sm text-ink-soft">
+            {fileName ?? "No file chosen"}
+          </span>
+        </span>
+      </span>
       <label className="flex items-start gap-2 text-xs text-ink-soft">
         <input
           type="checkbox"
