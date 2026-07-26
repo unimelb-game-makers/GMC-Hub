@@ -99,7 +99,7 @@ export function CustomSelect({
           tabIndex={-1}
           onKeyDown={onListKeyDown}
           ref={(el) => el?.focus()}
-          className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-line bg-surface py-1 shadow-lg outline-none"
+          className="thin-scrollbar absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-line bg-surface py-1 shadow-lg outline-none"
         >
           {options.map((option, i) => (
             <li
@@ -111,7 +111,7 @@ export function CustomSelect({
                 setValue(option.value);
                 setOpen(false);
               }}
-              className={`flex cursor-pointer items-center gap-2 px-3 py-2 text-sm ${
+              className={`flex cursor-pointer items-center gap-2 px-3 py-[6.8px] text-sm ${
                 i === activeIndex ? "bg-bg" : ""
               } ${option.value === value ? "text-accent" : "text-ink"}`}
             >
