@@ -58,10 +58,11 @@ export interface Event {
   createdAt: string;
 }
 
-// Amounts are AUD. amountClaimed and receiptPath are set at claim stage;
-// receiptPath points into Supabase Storage. receiptInDrive is an alternative
-// to receiptPath: submitter confirms the receipt is in the shared Drive
-// folder instead of attaching it, receiptPath stays null in that case.
+// Amounts are AUD. amountClaimed and receiptPaths are set at claim stage;
+// receiptPaths point into Supabase Storage, max 3 (DB check constraint).
+// receiptInDrive is an alternative to receiptPaths: submitter confirms the
+// receipt is in the shared Drive folder instead of attaching it,
+// receiptPaths stays empty in that case.
 export interface ReimbursementRequest {
   id: string;
   eventId: string;
@@ -71,7 +72,7 @@ export interface ReimbursementRequest {
   amountEstimated: number;
   amountClaimed: number | null;
   category: Category;
-  receiptPath: string | null;
+  receiptPaths: string[];
   receiptInDrive: boolean;
   status: RequestStatus;
   createdAt: string;

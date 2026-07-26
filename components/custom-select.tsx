@@ -41,6 +41,11 @@ export function CustomSelect({
     setOpen(true);
   }
 
+  function selectOption(optionValue: string) {
+    setValue(optionValue);
+    setOpen(false);
+  }
+
   function onTriggerKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
       e.preventDefault();
@@ -60,8 +65,7 @@ export function CustomSelect({
       setActiveIndex((i) => Math.max(0, i - 1));
     } else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      setValue(options[activeIndex].value);
-      setOpen(false);
+      selectOption(options[activeIndex].value);
     }
   }
 
@@ -107,9 +111,14 @@ export function CustomSelect({
               role="option"
               aria-selected={option.value === value}
               onMouseEnter={() => setActiveIndex(i)}
-              onClick={() => {
-                setValue(option.value);
-                setOpen(false);
+              onMouseDown={(e) => {
+                // mousedown (not click) + preventDefault: fires before any
+                // focus/blur side effects, so selecting an option can't race
+                // with the outside-click-close listener and leave the panel
+                // open.
+                e.preventDefault();
+                e.stopPropagation();
+                selectOption(option.value);
               }}
               className={`flex cursor-pointer items-center gap-2 px-3 py-[6.8px] text-sm ${
                 i === activeIndex ? "bg-bg" : ""
