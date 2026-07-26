@@ -10,6 +10,28 @@ import { createRequest } from "../actions";
 
 const inputClass =
   "rounded-md border border-line bg-surface px-3 py-2 text-sm font-normal placeholder:text-ink-soft/60";
+const selectClass = `${inputClass} w-full appearance-none pr-8`;
+
+// Native <select>, just re-skinned: keeps the OS picker (best on mobile)
+// while replacing the browser's default arrow with one that matches theme.
+function SelectChevron() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden
+      className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft"
+    >
+      <path
+        d="M5 7.5 10 12.5 15 7.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export default async function NewRequestPage() {
   const user = await requireAppUser();
@@ -52,13 +74,16 @@ export default async function NewRequestPage() {
           <form action={createRequest} className="mt-4 flex flex-col gap-3">
             <label className="flex flex-col gap-1 text-sm font-medium">
               Event
-              <select name="event_id" required className={inputClass}>
-                {events.map((event) => (
-                  <option key={event.id} value={event.id}>
-                    {event.title}
-                  </option>
-                ))}
-              </select>
+              <span className="relative block">
+                <select name="event_id" required className={selectClass}>
+                  {events.map((event) => (
+                    <option key={event.id} value={event.id}>
+                      {event.title}
+                    </option>
+                  ))}
+                </select>
+                <SelectChevron />
+              </span>
             </label>
             <label className="flex flex-col gap-1 text-sm font-medium">
               What are you buying?
@@ -92,13 +117,16 @@ export default async function NewRequestPage() {
               </label>
               <label className="flex flex-1 flex-col gap-1 text-sm font-medium">
                 Category
-                <select name="category" required className={inputClass}>
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {CATEGORY_LABELS[c]}
-                    </option>
-                  ))}
-                </select>
+                <span className="relative block">
+                  <select name="category" required className={selectClass}>
+                    {CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {CATEGORY_LABELS[c]}
+                      </option>
+                    ))}
+                  </select>
+                  <SelectChevron />
+                </span>
               </label>
             </div>
             <PaymentMethodFields
