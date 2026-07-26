@@ -78,7 +78,7 @@ export default async function NewRequestPage() {
                 name="description"
                 rows={3}
                 placeholder="Anything the execs should know (optional)"
-                className={inputClass}
+                className={`${inputClass} max-h-40 overflow-y-auto`}
               />
             </label>
             <div className="flex gap-3">

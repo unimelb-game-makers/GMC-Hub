@@ -49,3 +49,6 @@ coverage/
 .vscode/
 .idea/
 *.swp
+
+# One-off debug/test scripts
+scratch-*

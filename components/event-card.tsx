@@ -61,7 +61,7 @@ export function EventCard({
             name="description"
             rows={2}
             defaultValue={event.description}
-            className="rounded-md border border-line bg-bg px-3 py-2 text-sm"
+            className="max-h-40 overflow-y-auto rounded-md border border-line bg-bg px-3 py-2 text-sm"
           />
           <div className="flex gap-2">
             <SubmitButton className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-ink transition-colors hover:bg-accent-hover">

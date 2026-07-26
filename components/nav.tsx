@@ -1,10 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { AppUser } from "@/lib/auth";
+import { LiveRefresh } from "@/components/live-refresh";
 
 export function Nav({ user }: { user: AppUser }) {
   return (
     <header className="p-3 sm:p-4">
+      <LiveRefresh />
       <nav className="mx-auto flex max-w-5xl items-center gap-4 rounded-full bg-nav px-3 py-2 text-sm text-nav-ink shadow-sm">
         <Link
           href="/"
