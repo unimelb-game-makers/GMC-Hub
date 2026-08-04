@@ -253,13 +253,18 @@ export async function approveSpend(requestId: string) {
 
 export async function rejectRequest(requestId: string, formData: FormData) {
   const user = await requireAppUser();
-  if (!hasRole(user, "exec")) throw new Error("Not allowed");
 
   const reason = String(formData.get("reason") ?? "").trim();
   if (!reason) throw new Error("A rejection reason is required");
 
   const request = await getRequest(requestId);
-  if (!["pending_approval", "claim_submitted"].includes(request.status)) {
+  // Spend rejections need exec (or payment_manager, via role hierarchy);
+  // claim rejections are payment_manager-only, matching claim approval.
+  if (request.status === "pending_approval") {
+    if (!hasRole(user, "exec")) throw new Error("Not allowed");
+  } else if (request.status === "claim_submitted") {
+    if (!hasRole(user, "payment_manager")) throw new Error("Not allowed");
+  } else {
     throw new Error("Wrong status");
   }
 
@@ -299,15 +304,15 @@ export async function submitClaim(requestId: string, formData: FormData) {
   });
 
   await sendChannelMessage(
-    `${committeeMention()} **${user.display_name}** submitted a claim for ` +
-      `**${request.title}** (${formatAUD(amount)}), needs exec approval.` +
+    `${paymentManagerMention()} **${user.display_name}** submitted a claim for ` +
+      `**${request.title}** (${formatAUD(amount)}), needs payment manager approval.` +
       requestLink(request.id)
   );
 }
 
 export async function approveClaim(requestId: string) {
   const user = await requireAppUser();
-  if (!hasRole(user, "exec")) throw new Error("Not allowed");
+  if (!hasRole(user, "payment_manager")) throw new Error("Not allowed");
 
   const request = await getRequest(requestId);
   if (request.status !== "claim_submitted") throw new Error("Wrong status");
@@ -404,8 +409,8 @@ export async function resubmitClaim(requestId: string, formData: FormData) {
     receipt_in_drive: receiptInDrive,
   });
   await sendChannelMessage(
-    `${committeeMention()} **${user.display_name}** resubmitted their claim for ` +
-      `**${request.title}** (${formatAUD(amount)}), needs exec approval.` +
+    `${paymentManagerMention()} **${user.display_name}** resubmitted their claim for ` +
+      `**${request.title}** (${formatAUD(amount)}), needs payment manager approval.` +
       requestLink(request.id)
   );
 }

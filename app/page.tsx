@@ -57,13 +57,15 @@ export default async function Home() {
   const needsAction: RequestListRow[] = [];
   if (hasRole(user, "exec")) {
     needsAction.push(
-      ...requests.filter((r) =>
-        ["pending_approval", "claim_submitted"].includes(r.status)
-      )
+      ...requests.filter((r) => r.status === "pending_approval")
     );
   }
   if (hasRole(user, "payment_manager")) {
-    needsAction.push(...requests.filter((r) => r.status === "claim_approved"));
+    needsAction.push(
+      ...requests.filter((r) =>
+        ["claim_submitted", "claim_approved"].includes(r.status)
+      )
+    );
   }
   needsAction.push(
     ...requests.filter(
