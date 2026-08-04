@@ -272,7 +272,7 @@ export default async function RequestPage({
             </form>
           )}
 
-          {isExec && request.status === "claim_submitted" && (
+          {isPaymentManager && request.status === "claim_submitted" && (
             <div className={cardClass}>
               <p className="text-sm font-medium">Claim approval</p>
               <div className="mt-3 flex flex-wrap items-start gap-3">
