@@ -1,9 +1,10 @@
-import Link from "next/link";
 import { requireAppUser, hasRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Nav } from "@/components/nav";
-import { VotingTabs, type VoteSummary } from "@/components/voting-tabs";
+import { VotingModeTabs } from "@/components/voting-mode-tabs";
+import type { VoteSummary } from "@/components/voting-tabs";
+import type { ElectionSummary } from "@/components/elections-list";
 import { voteStatus } from "@/lib/voting";
 import type { Role } from "@/lib/types";
 
@@ -25,8 +26,9 @@ interface BallotRow {
 export default async function VotingPage() {
   const user = await requireAppUser();
   const supabase = await createClient();
+  const canManage = hasRole(user, "exec");
 
-  const [{ data: voteData }, { data: ballotData }] = await Promise.all([
+  const [{ data: voteData }, { data: ballotData }, electionSummaries] = await Promise.all([
     supabase
       .from("votes")
       .select("id, title, allowed_roles, opens_at, closes_at, closed_early_at, created_at")
@@ -35,6 +37,10 @@ export default async function VotingPage() {
     // (RLS on vote_ballots only exposes your own row), so this reads
     // through the service role purely to compute an aggregate count.
     createAdminClient().from("vote_ballots").select("vote_id, voter_id"),
+    // Elections are exec-only end to end (public voters never see this
+    // page, they vote from their emailed link instead), so the tab and its
+    // data are hidden from every other role rather than shown read-only.
+    canManage ? fetchElectionSummaries() : Promise.resolve([]),
   ]);
   const votes = (voteData ?? []) as VoteRow[];
   const ballots = (ballotData ?? []) as BallotRow[];
@@ -64,33 +70,73 @@ export default async function VotingPage() {
     opensAt: v.opens_at,
     effectiveClose: v.closed_early_at ?? v.closes_at,
   }));
-  const canManage = hasRole(user, "exec");
 
   return (
     <>
       <Nav user={user} />
       <main className="mx-auto w-full max-w-5xl flex-1 p-4 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="font-display text-xl font-semibold tracking-tight">
-              Voting Booth
-            </h1>
-            <p className="mt-1 text-sm text-ink-soft">
-              Motions and polls, separate from events and reimbursements.
-            </p>
-          </div>
-          {canManage && (
-            <Link
-              href="/voting/new"
-              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover"
-            >
-              New booth
-            </Link>
-          )}
+        <div>
+          <h1 className="font-display text-xl font-semibold tracking-tight">
+            Voting Booth
+          </h1>
+          <p className="mt-1 text-sm text-ink-soft">
+            Motions and polls, separate from events and reimbursements.
+          </p>
         </div>
 
-        <VotingTabs votes={voteSummaries} />
+        <VotingModeTabs
+          votes={voteSummaries}
+          elections={electionSummaries as ElectionSummary[]}
+          canManage={canManage}
+        />
       </main>
     </>
   );
+}
+
+interface ElectionRow {
+  id: string;
+  title: string;
+  opens_at: string | null;
+  closes_at: string;
+  closed_early_at: string | null;
+}
+
+interface ElectionVoterRow {
+  election_id: string;
+  voted_at: string | null;
+}
+
+async function fetchElectionSummaries(): Promise<ElectionSummary[]> {
+  const admin = createAdminClient();
+  const [{ data: electionData }, { data: voterData }] = await Promise.all([
+    admin
+      .from("elections")
+      .select("id, title, opens_at, closes_at, closed_early_at")
+      .order("closes_at", { ascending: false }),
+    admin.from("election_voters").select("election_id, voted_at"),
+  ]);
+  const elections = (electionData ?? []) as ElectionRow[];
+  const voters = (voterData ?? []) as ElectionVoterRow[];
+
+  const invitedCounts = new Map<string, number>();
+  const votedCounts = new Map<string, number>();
+  for (const v of voters) {
+    invitedCounts.set(v.election_id, (invitedCounts.get(v.election_id) ?? 0) + 1);
+    if (v.voted_at) votedCounts.set(v.election_id, (votedCounts.get(v.election_id) ?? 0) + 1);
+  }
+
+  return elections.map((e) => ({
+    id: e.id,
+    title: e.title,
+    status: voteStatus({
+      opensAt: e.opens_at,
+      closesAt: e.closes_at,
+      closedEarlyAt: e.closed_early_at,
+    }),
+    votedCount: votedCounts.get(e.id) ?? 0,
+    invitedCount: invitedCounts.get(e.id) ?? 0,
+    opensAt: e.opens_at,
+    effectiveClose: e.closed_early_at ?? e.closes_at,
+  }));
 }

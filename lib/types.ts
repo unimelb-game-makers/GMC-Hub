@@ -166,3 +166,47 @@ export interface VoteBallot {
   voterId: string;
   createdAt: string;
 }
+
+// Public elections: open to anyone with an emailed invite link, no Discord
+// sign-in. Computed at read time from opens_at/closes_at/closed_early_at,
+// same as VoteStatus.
+export type ElectionStatus = "upcoming" | "open" | "closed";
+
+export interface Election {
+  id: string;
+  title: string;
+  description: string;
+  createdBy: string;
+  opensAt: string | null;
+  closesAt: string;
+  closedEarlyAt: string | null;
+  createdAt: string;
+}
+
+// A single IRV race within an election, e.g. "President". An election can
+// hold several, each counted independently.
+export interface ElectionQuestion {
+  id: string;
+  electionId: string;
+  title: string;
+  description: string;
+  displayOrder: number;
+}
+
+export interface ElectionOption {
+  id: string;
+  questionId: string;
+  label: string;
+  displayOrder: number;
+}
+
+// One row per invited email. voted_at (null until cast) is the only signal
+// of participation, never linked to what they voted for, see
+// supabase/migrations/0018_elections.sql.
+export interface ElectionVoter {
+  id: string;
+  electionId: string;
+  email: string;
+  invitedAt: string;
+  votedAt: string | null;
+}

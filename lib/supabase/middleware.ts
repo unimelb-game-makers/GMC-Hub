@@ -1,7 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/auth", "/access-denied"];
+// /elections is the public, token-gated ballot page for the Elections
+// feature: voters reach it from an emailed link with no Discord sign-in at
+// all, so it must never redirect to /login.
+const PUBLIC_PATHS = ["/login", "/auth", "/access-denied", "/elections"];
 
 // Refreshes the auth session cookie and redirects signed-out users to /login.
 export async function updateSession(request: NextRequest) {
