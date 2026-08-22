@@ -22,7 +22,13 @@ export function Nav({ user }: { user: AppUser }) {
             className="h-8 w-8 flex-none rounded-full bg-[#f0ead6] object-contain p-0.5"
             priority
           />
-          GMC Reimbursements
+          GMC Hub
+        </Link>
+        <Link
+          href="/reimbursements"
+          className="text-nav-ink/70 transition-colors hover:text-nav-ink"
+        >
+          Reimbursements
         </Link>
         <Link
           href="/events"

@@ -36,7 +36,7 @@ export default async function LoginPage({
           className="font-display text-4xl font-bold uppercase tracking-tight text-accent sm:text-5xl"
           style={{ textShadow: "3px 3px 0 var(--nav)" }}
         >
-          Reimbursements
+          GMC Hub
         </h1>
         <p className="mt-3 text-ink-soft">
           Committee access only, sign in with your club Discord account.

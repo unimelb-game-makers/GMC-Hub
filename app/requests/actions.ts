@@ -76,6 +76,7 @@ async function transition(
   });
 
   revalidatePath("/");
+  revalidatePath("/reimbursements");
   revalidatePath(`/requests/${request.id}`);
 }
 
@@ -235,6 +236,7 @@ export async function createRequest(formData: FormData) {
   );
 
   revalidatePath("/");
+  revalidatePath("/reimbursements");
   redirect(`/requests/${request.id}`);
 }
 
