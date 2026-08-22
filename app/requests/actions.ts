@@ -151,11 +151,14 @@ function parseBankDetails(formData: FormData) {
       payid,
       bsb: null,
       account_number: null,
+      account_name: null,
     };
   }
   if (method === "bank_transfer") {
+    const accountName = String(formData.get("account_name") ?? "").trim();
     const bsb = String(formData.get("bsb") ?? "").replace(/\D/g, "");
     const account = String(formData.get("account_number") ?? "").replace(/\D/g, "");
+    if (!accountName) throw new Error("Account name is required");
     if (!/^\d{6}$/.test(bsb)) throw new Error("BSB must be 6 digits");
     if (!/^\d{4,10}$/.test(account)) {
       throw new Error("Account number must be 4 to 10 digits");
@@ -165,6 +168,7 @@ function parseBankDetails(formData: FormData) {
       payid: null,
       bsb,
       account_number: account,
+      account_name: accountName,
     };
   }
   throw new Error("Select a payment method");

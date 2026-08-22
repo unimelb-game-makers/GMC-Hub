@@ -85,7 +85,7 @@ export default async function RequestPage({
     // payment managers, and it is deleted once the request is reimbursed.
     supabase
       .from("request_bank_details")
-      .select("payment_method, payid, bsb, account_number")
+      .select("payment_method, payid, bsb, account_number, account_name")
       .eq("request_id", id)
       .maybeSingle(),
   ]);
@@ -205,6 +205,7 @@ export default async function RequestPage({
                 payid: bank.payid,
                 bsb: bank.bsb,
                 accountNumber: bank.account_number,
+                accountName: bank.account_name,
               } as BankDetails)}
             </span>
           </p>
@@ -357,6 +358,7 @@ export default async function RequestPage({
                     defaultPayid={bank?.payid ?? ""}
                     defaultBsb={bank?.bsb ?? ""}
                     defaultAccountNumber={bank?.account_number ?? ""}
+                    defaultAccountName={bank?.account_name ?? ""}
                     fieldBg="bg-bg"
                   />
                   <SubmitButton className={`${primaryButton} self-start`}>

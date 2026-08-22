@@ -47,6 +47,7 @@ export interface BankDetails {
   payid: string | null;
   bsb: string | null;
   accountNumber: string | null;
+  accountName: string | null;
 }
 
 export interface Event {

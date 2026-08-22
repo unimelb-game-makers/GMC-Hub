@@ -24,7 +24,7 @@ export default async function NewRequestPage() {
     // Saved payout details for prefill (RLS: own row only).
     supabase
       .from("bank_details")
-      .select("payment_method, payid, bsb, account_number")
+      .select("payment_method, payid, bsb, account_number, account_name")
       .maybeSingle(),
   ]);
 
@@ -111,6 +111,7 @@ export default async function NewRequestPage() {
               defaultPayid={savedBank?.payid ?? ""}
               defaultBsb={savedBank?.bsb ?? ""}
               defaultAccountNumber={savedBank?.account_number ?? ""}
+              defaultAccountName={savedBank?.account_name ?? ""}
               showSaveCheckbox
               defaultSave={!!savedBank}
             />
