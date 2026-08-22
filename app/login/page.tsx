@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { SignInButton } from "@/components/sign-in-button";
+import { DEV_BYPASS_AUTH } from "@/lib/auth";
 
 export default async function LoginPage({
   searchParams,
@@ -35,7 +36,7 @@ export default async function LoginPage({
           className="font-display text-4xl font-bold uppercase tracking-tight text-accent sm:text-5xl"
           style={{ textShadow: "3px 3px 0 var(--nav)" }}
         >
-          Reimbursements
+          GMC Hub
         </h1>
         <p className="mt-3 text-ink-soft">
           Committee access only, sign in with your club Discord account.
@@ -43,6 +44,15 @@ export default async function LoginPage({
       </div>
 
       <SignInButton />
+
+      {DEV_BYPASS_AUTH && (
+        <a
+          href="/auth/dev-bypass"
+          className="rounded-full border border-line px-6 py-3 text-sm font-medium text-ink-soft transition-colors hover:text-ink"
+        >
+          Dev bypass — skip Discord sign-in
+        </a>
+      )}
 
       {error && (
         <p className="text-sm text-[#f0a3a3]">

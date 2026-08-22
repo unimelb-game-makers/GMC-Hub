@@ -1,0 +1,17 @@
+import { NavSkeleton, SkeletonBlock } from "@/components/skeleton";
+
+export default function Loading() {
+  return (
+    <>
+      <NavSkeleton />
+      <main className="mx-auto w-full max-w-5xl flex-1 p-4 sm:p-6">
+        <SkeletonBlock className="h-6 w-40" />
+        <div className="mt-4 flex flex-col gap-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonBlock key={i} className="h-14 w-full" />
+          ))}
+        </div>
+      </main>
+    </>
+  );
+}

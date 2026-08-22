@@ -81,7 +81,7 @@ export default async function NewRequestPage() {
                 className={`${inputClass} max-h-40 overflow-y-auto`}
               />
             </label>
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <label className="flex flex-1 flex-col gap-1 text-sm font-medium">
                 Estimated amount (AUD)
                 <input
