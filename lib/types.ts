@@ -143,6 +143,9 @@ export interface Vote {
   opensAt: string | null;
   closesAt: string;
   closedEarlyAt: string | null;
+  // Off by default (secret ballot): whether individual voters' choices are
+  // shown once this vote closes. Locked once the first ballot is cast.
+  revealVoters: boolean;
   createdAt: string;
 }
 

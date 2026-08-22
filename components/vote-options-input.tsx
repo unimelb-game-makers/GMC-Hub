@@ -7,8 +7,10 @@ const inputClass =
 
 export function VoteOptionsInput({
   defaultOptions = ["", ""],
+  locked = false,
 }: {
   defaultOptions?: string[];
+  locked?: boolean;
 }) {
   const [options, setOptions] = useState<string[]>(defaultOptions);
 
@@ -19,6 +21,27 @@ export function VoteOptionsInput({
     setOptions((prev) => prev.filter((_, idx) => idx !== i));
   };
   const add = () => setOptions((prev) => [...prev, ""]);
+
+  if (locked) {
+    return (
+      <div className="flex flex-col gap-1 text-sm font-medium">
+        Options
+        <p className="text-xs text-ink-soft">
+          Votes have already been cast, so options can&apos;t be changed.
+        </p>
+        <div className="flex flex-col gap-2">
+          {defaultOptions.map((value, i) => (
+            <div
+              key={i}
+              className="rounded-md border border-line bg-bg px-3 py-2 text-sm text-ink-soft"
+            >
+              {value}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-1 text-sm font-medium">

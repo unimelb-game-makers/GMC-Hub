@@ -6,22 +6,46 @@ import { TimePicker } from "@/components/time-picker";
 import { Checkbox } from "@/components/checkbox";
 import { VoteOptionsInput } from "@/components/vote-options-input";
 import { PendingButton } from "@/components/pending-button";
-import { ROLES } from "@/lib/types";
+import { ROLES, type Role } from "@/lib/types";
 import { ROLE_LABELS } from "@/lib/format";
 
 const inputClass =
   "rounded-md border border-line bg-bg px-3 py-2 text-sm font-normal placeholder:text-ink-soft/60";
 
 export function VoteForm({
-  onCreate,
+  onSubmit,
+  onCancel,
+  submitLabel = "Create booth",
+  defaultTitle = "",
+  defaultDescription = "",
+  defaultOptions = ["", ""],
+  optionsLocked = false,
+  defaultAllowedRoles = [],
+  defaultRevealVoters = false,
+  defaultOpensDate = "",
+  defaultOpensTime = "",
+  defaultClosesDate = "",
+  defaultClosesTime = "",
 }: {
-  onCreate: (formData: FormData) => Promise<void>;
+  onSubmit: (formData: FormData) => Promise<void>;
+  onCancel?: () => void;
+  submitLabel?: string;
+  defaultTitle?: string;
+  defaultDescription?: string;
+  defaultOptions?: string[];
+  optionsLocked?: boolean;
+  defaultAllowedRoles?: Role[];
+  defaultRevealVoters?: boolean;
+  defaultOpensDate?: string;
+  defaultOpensTime?: string;
+  defaultClosesDate?: string;
+  defaultClosesTime?: string;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [title, setTitle] = useState(defaultTitle);
+  const [description, setDescription] = useState(defaultDescription);
+  const [scheduleOpen, setScheduleOpen] = useState(!!(defaultOpensDate && defaultOpensTime));
 
   return (
     <form
@@ -34,11 +58,9 @@ export function VoteForm({
         setError(null);
         setPending(true);
         try {
-          await onCreate(new FormData(e.currentTarget));
-          // On success this redirects to the new vote's page, so no local
-          // reset is needed the way the event form needs one.
+          await onSubmit(new FormData(e.currentTarget));
         } catch (err) {
-          setError(err instanceof Error ? err.message : "Couldn't create the vote");
+          setError(err instanceof Error ? err.message : "Couldn't save the vote");
         } finally {
           setPending(false);
         }
@@ -68,14 +90,14 @@ export function VoteForm({
         />
       </label>
 
-      <VoteOptionsInput />
+      <VoteOptionsInput defaultOptions={defaultOptions} locked={optionsLocked} />
 
       <div className="flex flex-col gap-1 text-sm font-medium">
         Who can vote
         <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-normal">
           {ROLES.map((r) => (
             <label key={r} className="flex items-center gap-2">
-              <Checkbox name={`role_${r}`} />
+              <Checkbox name={`role_${r}`} defaultChecked={defaultAllowedRoles.includes(r)} />
               {ROLE_LABELS[r]}
             </label>
           ))}
@@ -85,13 +107,28 @@ export function VoteForm({
         </p>
       </div>
 
+      <div className="flex flex-col gap-1">
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <Checkbox
+            name="reveal_voters"
+            defaultChecked={defaultRevealVoters}
+            disabled={optionsLocked}
+          />
+          Show who voted for what once this closes
+        </label>
+        <p className="text-xs text-ink-soft">
+          Off by default (secret ballot).
+          {optionsLocked && " Votes have already been cast, so this can't be changed."}
+        </p>
+      </div>
+
       <div className="flex flex-col gap-1 text-sm font-medium">
         Closes
         <div className="flex gap-2">
           <div className="flex-1">
-            <DatePicker name="closes_at_date" required />
+            <DatePicker name="closes_at_date" defaultValue={defaultClosesDate} required />
           </div>
-          <TimePicker name="closes_at_time" required />
+          <TimePicker name="closes_at_time" defaultValue={defaultClosesTime} required />
         </div>
       </div>
 
@@ -107,20 +144,31 @@ export function VoteForm({
           Opens
           <div className="flex gap-2">
             <div className="flex-1">
-              <DatePicker name="opens_at_date" required />
+              <DatePicker name="opens_at_date" defaultValue={defaultOpensDate} required />
             </div>
-            <TimePicker name="opens_at_time" required />
+            <TimePicker name="opens_at_time" defaultValue={defaultOpensTime} required />
           </div>
         </div>
       )}
 
       {error && <p className="text-sm text-[#f0a3a3]">{error}</p>}
-      <PendingButton
-        pending={pending}
-        className="self-start rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover"
-      >
-        Create vote
-      </PendingButton>
+      <div className="flex gap-2">
+        <PendingButton
+          pending={pending}
+          className="self-start rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover"
+        >
+          {submitLabel}
+        </PendingButton>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-md border border-line px-4 py-2 text-sm font-medium transition-colors hover:bg-bg"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
     </form>
   );
 }

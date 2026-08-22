@@ -15,23 +15,13 @@ function canManageVotes(user: AppUser): boolean {
   return hasRole(user, "exec");
 }
 
-export async function createVote(formData: FormData) {
-  const user = await requireAppUser();
-  if (!canManageVotes(user)) throw new Error("Not allowed");
-
+// Shared by create and update: title, eligibility, and schedule. Options
+// are handled separately by the caller since an update may need to leave
+// them untouched once ballots exist.
+function parseVoteFields(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   if (!title) throw new Error("Title is required");
   const description = String(formData.get("description") ?? "").trim();
-
-  const options = formData
-    .getAll("option")
-    .map((o) => String(o).trim())
-    .filter(Boolean);
-  if (options.length < 2) throw new Error("Add at least 2 options");
-  if (new Set(options.map((o) => o.toLowerCase())).size !== options.length) {
-    throw new Error("Options must be unique");
-  }
-
   const allowedRoles = ROLES.filter((r) => formData.get(`role_${r}`));
 
   const closesDate = String(formData.get("closes_at_date") ?? "").trim();
@@ -54,6 +44,31 @@ export async function createVote(formData: FormData) {
     }
   }
 
+  const revealVoters = !!formData.get("reveal_voters");
+
+  return { title, description, allowedRoles, opensAt, closesAt, revealVoters };
+}
+
+function parseOptions(formData: FormData): string[] {
+  const options = formData
+    .getAll("option")
+    .map((o) => String(o).trim())
+    .filter(Boolean);
+  if (options.length < 2) throw new Error("Add at least 2 options");
+  if (new Set(options.map((o) => o.toLowerCase())).size !== options.length) {
+    throw new Error("Options must be unique");
+  }
+  return options;
+}
+
+export async function createVote(formData: FormData) {
+  const user = await requireAppUser();
+  if (!canManageVotes(user)) throw new Error("Not allowed");
+
+  const { title, description, allowedRoles, opensAt, closesAt, revealVoters } =
+    parseVoteFields(formData);
+  const options = parseOptions(formData);
+
   const admin = createAdminClient();
   const { data: vote, error } = await admin
     .from("votes")
@@ -64,6 +79,7 @@ export async function createVote(formData: FormData) {
       allowed_roles: allowedRoles,
       opens_at: opensAt ? opensAt.toISOString() : null,
       closes_at: closesAt.toISOString(),
+      reveal_voters: revealVoters,
     })
     .select("id")
     .single();
@@ -77,6 +93,73 @@ export async function createVote(formData: FormData) {
   revalidatePath("/voting");
   revalidatePath("/");
   redirect(`/voting/${vote.id}`);
+}
+
+// Amendable up until it closes (naturally at closes_at, or manually via
+// closeVoteEarly). Options and the reveal-voters toggle can only be
+// changed while no one has voted yet: renaming/removing an option, or
+// switching ballot secrecy on someone after they voted under the original
+// terms, would misrepresent what people actually voted for or agreed to.
+// Both are left untouched instead once a ballot exists (silently ignoring
+// whatever the client submitted for them, not trusting it to have
+// correctly locked its own form).
+export async function updateVote(voteId: string, formData: FormData) {
+  const user = await requireAppUser();
+  if (!canManageVotes(user)) throw new Error("Not allowed");
+
+  const admin = createAdminClient();
+  const { data: existing } = await admin
+    .from("votes")
+    .select("opens_at, closes_at, closed_early_at")
+    .eq("id", voteId)
+    .maybeSingle();
+  if (!existing) throw new Error("Vote not found");
+  if (
+    voteStatus({
+      opensAt: existing.opens_at,
+      closesAt: existing.closes_at,
+      closedEarlyAt: existing.closed_early_at,
+    }) === "closed"
+  ) {
+    throw new Error("This vote has closed and can no longer be edited");
+  }
+
+  const { title, description, allowedRoles, opensAt, closesAt, revealVoters } =
+    parseVoteFields(formData);
+
+  const { count: ballotCount } = await admin
+    .from("vote_ballots")
+    .select("id", { count: "exact", head: true })
+    .eq("vote_id", voteId);
+
+  const { error } = await admin
+    .from("votes")
+    .update({
+      title,
+      description,
+      allowed_roles: allowedRoles,
+      opens_at: opensAt ? opensAt.toISOString() : null,
+      closes_at: closesAt.toISOString(),
+      ...(ballotCount ? {} : { reveal_voters: revealVoters }),
+    })
+    .eq("id", voteId);
+  if (error) throw new Error(error.message);
+
+  if (!ballotCount) {
+    const options = parseOptions(formData);
+    const { error: deleteError } = await admin
+      .from("vote_options")
+      .delete()
+      .eq("vote_id", voteId);
+    if (deleteError) throw new Error(deleteError.message);
+    const { error: optionsError } = await admin.from("vote_options").insert(
+      options.map((label, i) => ({ vote_id: voteId, label, display_order: i }))
+    );
+    if (optionsError) throw new Error(optionsError.message);
+  }
+
+  revalidatePath(`/voting/${voteId}`);
+  revalidatePath("/voting");
 }
 
 export async function castBallot(voteId: string, optionId: string) {

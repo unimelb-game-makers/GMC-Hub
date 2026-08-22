@@ -13,13 +13,13 @@ export default async function NewVotePage() {
       <Nav user={user} />
       <main className="mx-auto w-full max-w-5xl flex-1 p-4 sm:p-6">
         <h1 className="font-display text-xl font-semibold tracking-tight">
-          New vote
+          New booth
         </h1>
         <p className="mt-1 text-sm text-ink-soft">
           Times are entered in Melbourne local time.
         </p>
 
-        <VoteForm onCreate={createVote} />
+        <VoteForm onSubmit={createVote} />
       </main>
     </>
   );

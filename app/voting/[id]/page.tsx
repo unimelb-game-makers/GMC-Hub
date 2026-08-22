@@ -5,13 +5,13 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Nav } from "@/components/nav";
 import { SubmitButton } from "@/components/submit-button";
+import { VoteHeader } from "@/components/vote-header";
 import { VoteBallotForm } from "@/components/vote-ballot-form";
 import { VoteTally } from "@/components/vote-tally";
-import { formatEligibleRoles } from "@/lib/format";
-import { formatMelbourne } from "@/lib/timezone";
+import { VoteVoterList } from "@/components/vote-voter-list";
 import { voteStatus, canVote, resolveVote } from "@/lib/voting";
 import type { Role } from "@/lib/types";
-import { castBallot, closeVoteEarly } from "../actions";
+import { castBallot, closeVoteEarly, updateVote } from "../actions";
 
 interface VoteDetail {
   id: string;
@@ -21,6 +21,7 @@ interface VoteDetail {
   opens_at: string | null;
   closes_at: string;
   closed_early_at: string | null;
+  reveal_voters: boolean;
   created_at: string;
   creator: { display_name: string } | null;
 }
@@ -52,7 +53,7 @@ export default async function VoteDetailPage({
     supabase
       .from("votes")
       .select(
-        "id, title, description, allowed_roles, opens_at, closes_at, closed_early_at, created_at, creator:app_users!votes_created_by_fkey (display_name)"
+        "id, title, description, allowed_roles, opens_at, closes_at, closed_early_at, reveal_voters, created_at, creator:app_users!votes_created_by_fkey (display_name)"
       )
       .eq("id", id)
       .maybeSingle(),
@@ -81,34 +82,45 @@ export default async function VoteDetailPage({
   const eligible = canVote(vote.allowed_roles, user.roles);
   const canManage = hasRole(user, "exec");
 
-  // Tallies need every voter's ballots, not just this user's own (RLS on
-  // vote_ballots only exposes your own row), so this reads through the
-  // service role purely to compute an aggregate count. Only the total
-  // count is shown while a vote is open (ballot secrecy); the full
-  // per-option breakdown only renders once it's closed.
-  const { data: allBallotData } =
-    status === "closed"
-      ? await createAdminClient().from("vote_ballots").select("option_id").eq("vote_id", id)
-      : { data: null };
+  // Every voter's ballots, not just this user's own (RLS on vote_ballots
+  // only exposes your own row), read through the service role purely to
+  // compute aggregates: a total count regardless of status, and the full
+  // per-option tally only once the vote is closed (ballot secrecy while
+  // it's still open).
+  const { data: allBallotData } = await createAdminClient()
+    .from("vote_ballots")
+    .select("option_id")
+    .eq("vote_id", id);
   const allBallots = (allBallotData ?? []) as BallotRow[];
+  const ballotCount = allBallots.length;
   const result = resolveVote(
     options.map((o) => o.id),
     allBallots.map((b) => ({ optionId: b.option_id }))
   );
 
-  let ballotCount = 0;
-  if (status !== "closed") {
-    const { count } = await createAdminClient()
-      .from("vote_ballots")
-      .select("id", { count: "exact", head: true })
-      .eq("vote_id", id);
-    ballotCount = count ?? 0;
-  }
-
-  const effectiveClose = vote.closed_early_at ?? vote.closes_at;
   const votedOptionLabel = ownBallot
     ? options.find((o) => o.id === ownBallot.option_id)?.label
     : null;
+
+  let voterBallots: { voterName: string; optionLabel: string }[] = [];
+  if (status === "closed" && vote.reveal_voters) {
+    const { data: namedBallotData } = await createAdminClient()
+      .from("vote_ballots")
+      .select(
+        "option_id, voter:app_users!vote_ballots_voter_id_fkey (display_name)"
+      )
+      .eq("vote_id", id);
+    const optionLabelById = new Map(options.map((o) => [o.id, o.label]));
+    voterBallots = (
+      (namedBallotData ?? []) as unknown as {
+        option_id: string;
+        voter: { display_name: string } | null;
+      }[]
+    ).map((b) => ({
+      voterName: b.voter?.display_name ?? "unknown",
+      optionLabel: optionLabelById.get(b.option_id) ?? "unknown",
+    }));
+  }
 
   return (
     <>
@@ -121,46 +133,23 @@ export default async function VoteDetailPage({
           ← Voting Booth
         </Link>
 
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <h1 className="font-display text-xl font-semibold tracking-tight">
-            {vote.title}
-          </h1>
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-              status === "open"
-                ? "bg-[#26402f] text-[#8fd6ac]"
-                : status === "upcoming"
-                  ? "bg-[#4a3a22] text-[#f0c98d]"
-                  : "bg-line text-ink-soft"
-            }`}
-          >
-            {status === "open" ? "Open" : status === "upcoming" ? "Upcoming" : "Closed"}
-          </span>
-        </div>
-        {vote.description && (
-          <p className="mt-1 text-sm text-ink-soft">{vote.description}</p>
-        )}
-
-        <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-ink-soft">
-          <div className="flex gap-1">
-            <dt>Eligible:</dt>
-            <dd>{formatEligibleRoles(vote.allowed_roles)}</dd>
-          </div>
-          {vote.opens_at && status === "upcoming" && (
-            <div className="flex gap-1">
-              <dt>Opens:</dt>
-              <dd>{formatMelbourne(vote.opens_at)}</dd>
-            </div>
-          )}
-          <div className="flex gap-1">
-            <dt>{status === "closed" ? "Closed:" : "Closes:"}</dt>
-            <dd>{formatMelbourne(effectiveClose)}</dd>
-          </div>
-          <div className="flex gap-1">
-            <dt>Created by:</dt>
-            <dd>{vote.creator?.display_name ?? "unknown"}</dd>
-          </div>
-        </dl>
+        <VoteHeader
+          status={status}
+          canEdit={canManage && status !== "closed"}
+          optionsLocked={ballotCount > 0}
+          vote={{
+            title: vote.title,
+            description: vote.description,
+            allowedRoles: vote.allowed_roles,
+            opensAt: vote.opens_at,
+            closesAt: vote.closes_at,
+            closedEarlyAt: vote.closed_early_at,
+            revealVoters: vote.reveal_voters,
+            creatorName: vote.creator?.display_name ?? "unknown",
+          }}
+          options={options.map((o) => o.label)}
+          onUpdate={updateVote.bind(null, vote.id)}
+        />
 
         <section className="mt-6">
           {status === "upcoming" && (
@@ -233,6 +222,7 @@ export default async function VoteDetailPage({
                       : "Failed"}
               </div>
               <VoteTally options={options} result={result} />
+              {vote.reveal_voters && <VoteVoterList ballots={voterBallots} />}
             </>
           )}
         </section>
