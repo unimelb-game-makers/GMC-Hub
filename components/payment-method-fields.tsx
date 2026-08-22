@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Checkbox } from "@/components/checkbox";
 import type { PaymentMethod } from "@/lib/types";
 
 // The club can't pay out via PayID yet — only BSB + account number for now.
@@ -123,12 +124,7 @@ export function PaymentMethodFields({
 
       {showSaveCheckbox && (
         <label className="mt-3 flex items-center gap-2 text-sm text-ink-soft">
-          <input
-            type="checkbox"
-            name="save_bank_details"
-            defaultChecked={defaultSave}
-            className="accent-accent"
-          />
+          <Checkbox name="save_bank_details" defaultChecked={defaultSave} />
           Save these details for next time
         </label>
       )}

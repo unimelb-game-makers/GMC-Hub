@@ -12,7 +12,7 @@ import {
   type AttendanceMemberOption,
 } from "@/components/attendance-list";
 import { formatAUD, CATEGORY_LABELS } from "@/lib/format";
-import { REQUEST_STATUSES, type Category, type RequestStatus } from "@/lib/types";
+import { REQUEST_STATUSES, type Category, type EventType, type RequestStatus } from "@/lib/types";
 import { setEventOpen, updateEvent, deleteEvent } from "../actions";
 import {
   checkInMember,
@@ -27,6 +27,10 @@ interface EventDetail {
   is_open: boolean;
   created_at: string;
   closed_at: string | null;
+  starts_at: string | null;
+  venue: string | null;
+  event_types: EventType[];
+  event_type_other_details: string | null;
   creator: { display_name: string } | null;
 }
 
@@ -45,7 +49,12 @@ interface AttendanceRow {
   id: string;
   member_id: string;
   created_at: string;
-  member: { full_name: string; student_number: string | null } | null;
+  member: {
+    full_name: string;
+    student_number: string | null;
+    course: string | null;
+    is_club_member: boolean;
+  } | null;
   checked_in_by_user: { display_name: string } | null;
 }
 
@@ -53,6 +62,8 @@ interface MemberRow {
   id: string;
   full_name: string;
   student_number: string | null;
+  course: string | null;
+  is_club_member: boolean;
 }
 
 const cardClass = "rounded-lg border border-line bg-surface p-4";
@@ -79,7 +90,7 @@ export default async function EventDetailPage({
       supabase
         .from("events")
         .select(
-          "id, title, description, is_open, created_at, closed_at, creator:app_users!events_created_by_fkey (display_name)"
+          "id, title, description, is_open, created_at, closed_at, starts_at, venue, event_types, event_type_other_details, creator:app_users!events_created_by_fkey (display_name)"
         )
         .eq("id", id)
         .maybeSingle(),
@@ -93,7 +104,7 @@ export default async function EventDetailPage({
       supabase
         .from("attendance_entries")
         .select(
-          "id, member_id, created_at, member:attendance_members!attendance_entries_member_id_fkey (full_name, student_number), checked_in_by_user:app_users!attendance_entries_checked_in_by_fkey (display_name)"
+          "id, member_id, created_at, member:attendance_members!attendance_entries_member_id_fkey (full_name, student_number, course, is_club_member), checked_in_by_user:app_users!attendance_entries_checked_in_by_fkey (display_name)"
         )
         .eq("event_id", id)
         .order("created_at", { ascending: false }),
@@ -101,7 +112,7 @@ export default async function EventDetailPage({
       // of re-entering a returning student's details).
       supabase
         .from("attendance_members")
-        .select("id, full_name, student_number")
+        .select("id, full_name, student_number, course, is_club_member")
         .order("full_name", { ascending: true }),
     ]);
   if (!data) notFound();
@@ -113,6 +124,8 @@ export default async function EventDetailPage({
     memberId: a.member_id,
     fullName: a.member?.full_name ?? "unknown",
     studentNumber: a.member?.student_number ?? null,
+    course: a.member?.course ?? null,
+    isClubMember: a.member?.is_club_member ?? false,
     createdAt: a.created_at,
     checkedInByName: a.checked_in_by_user?.display_name ?? "unknown",
   }));
@@ -121,6 +134,8 @@ export default async function EventDetailPage({
   ).map((m) => ({
     id: m.id,
     fullName: m.full_name,
+    course: m.course,
+    isClubMember: m.is_club_member,
     studentNumber: m.student_number,
   }));
 
@@ -153,6 +168,10 @@ export default async function EventDetailPage({
             is_open: event.is_open,
             created_at: event.created_at,
             closed_at: event.closed_at,
+            startsAt: event.starts_at,
+            venue: event.venue,
+            eventTypes: event.event_types,
+            eventTypeOtherDetails: event.event_type_other_details,
             creatorName: event.creator?.display_name ?? "unknown",
           }}
           canManage={canManage}
@@ -242,6 +261,7 @@ export default async function EventDetailPage({
               onAddNew={addNewMemberAndCheckIn.bind(null, event.id)}
               onRemove={removeAttendanceEntry.bind(null, event.id)}
               exportHref={`/events/${event.id}/attendance/export`}
+              canExport={!!event.starts_at && !!event.venue && event.event_types.length > 0}
             />
           }
         />

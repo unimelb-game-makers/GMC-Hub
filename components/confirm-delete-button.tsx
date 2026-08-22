@@ -6,17 +6,24 @@ import { SubmitButton } from "@/components/submit-button";
 const dangerButtonClass =
   "rounded-md border border-[#5a3232] px-3 py-1.5 text-xs font-medium text-[#f0a3a3] transition-colors hover:bg-[#2a1818]";
 
-export function DeleteEventButton({
-  eventTitle,
-  blocked,
+export function ConfirmDeleteButton({
+  label = "Delete",
+  confirmTitle,
+  confirmBody,
+  blocked = false,
+  blockedMessage,
   onDelete,
 }: {
-  eventTitle: string;
-  blocked: boolean;
+  label?: string;
+  confirmTitle: string;
+  confirmBody: string;
+  blocked?: boolean;
+  blockedMessage?: string;
   onDelete: () => Promise<void>;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [showTip, setShowTip] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (blocked) {
     return (
@@ -27,14 +34,14 @@ export function DeleteEventButton({
         onClick={() => setShowTip((v) => !v)}
       >
         <span className="cursor-not-allowed rounded-md border border-line px-3 py-1.5 text-xs font-medium text-ink-soft/50">
-          Delete
+          {label}
         </span>
-        {showTip && (
+        {showTip && blockedMessage && (
           <span
             role="tooltip"
             className="absolute bottom-full left-1/2 z-10 mb-2 w-48 max-w-[85vw] -translate-x-1/2 rounded-md border border-line bg-nav px-3 py-2 text-xs font-normal text-nav-ink shadow-lg"
           >
-            This event has requests or attendance recorded. Close it instead.
+            {blockedMessage}
           </span>
         )}
       </span>
@@ -43,12 +50,8 @@ export function DeleteEventButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setConfirming(true)}
-        className={dangerButtonClass}
-      >
-        Delete
+      <button type="button" onClick={() => setConfirming(true)} className={dangerButtonClass}>
+        {label}
       </button>
 
       {confirming && (
@@ -61,11 +64,10 @@ export function DeleteEventButton({
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="font-display text-base font-semibold tracking-tight">
-              Delete event?
+              {confirmTitle}
             </h2>
-            <p className="mt-2 text-sm text-ink-soft">
-              Delete &ldquo;{eventTitle}&rdquo;? This can&apos;t be undone.
-            </p>
+            <p className="mt-2 text-sm text-ink-soft">{confirmBody}</p>
+            {error && <p className="mt-2 text-sm text-[#f0a3a3]">{error}</p>}
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
@@ -74,7 +76,16 @@ export function DeleteEventButton({
               >
                 Cancel
               </button>
-              <form action={onDelete}>
+              <form
+                action={async () => {
+                  setError(null);
+                  try {
+                    await onDelete();
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "Couldn't delete");
+                  }
+                }}
+              >
                 <SubmitButton className={`${dangerButtonClass} px-4 py-2 text-sm`}>
                   Delete
                 </SubmitButton>

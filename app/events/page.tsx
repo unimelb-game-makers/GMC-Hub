@@ -2,8 +2,8 @@ import { requireAppUser, hasRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Nav } from "@/components/nav";
 import { EventsTabs } from "@/components/events-tabs";
-import { SubmitButton } from "@/components/submit-button";
-import type { RequestStatus } from "@/lib/types";
+import { NewEventForm } from "@/components/new-event-form";
+import type { EventType, RequestStatus } from "@/lib/types";
 import { createEvent, setEventOpen, updateEvent, deleteEvent } from "./actions";
 
 interface EventRow {
@@ -13,6 +13,10 @@ interface EventRow {
   is_open: boolean;
   created_at: string;
   closed_at: string | null;
+  starts_at: string | null;
+  venue: string | null;
+  event_types: EventType[];
+  event_type_other_details: string | null;
   creator: { display_name: string } | null;
 }
 
@@ -30,7 +34,7 @@ export default async function EventsPage() {
       supabase
         .from("events")
         .select(
-          "id, title, description, is_open, created_at, closed_at, creator:app_users!events_created_by_fkey (display_name)"
+          "id, title, description, is_open, created_at, closed_at, starts_at, venue, event_types, event_type_other_details, creator:app_users!events_created_by_fkey (display_name)"
         )
         .order("created_at", { ascending: false }),
       supabase.from("requests").select("event_id, status"),
@@ -58,6 +62,10 @@ export default async function EventsPage() {
       is_open: event.is_open,
       created_at: event.created_at,
       closed_at: event.closed_at,
+      startsAt: event.starts_at,
+      venue: event.venue,
+      eventTypes: event.event_types,
+      eventTypeOtherDetails: event.event_type_other_details,
       creatorName: event.creator?.display_name ?? "unknown",
     },
     counts: statusCounts.get(event.id) ?? {},
@@ -80,29 +88,7 @@ export default async function EventsPage() {
           Spend requests are made under an open event.
         </p>
 
-        {canManage && (
-          <form
-            action={createEvent}
-            className="mt-4 flex max-w-lg flex-col gap-2 rounded-lg border border-line bg-surface p-4"
-          >
-            <h2 className="text-sm font-medium">New event</h2>
-            <input
-              name="title"
-              required
-              placeholder="Event title"
-              className="rounded-md border border-line bg-bg px-3 py-2 text-sm placeholder:text-ink-soft/60"
-            />
-            <textarea
-              name="description"
-              rows={2}
-              placeholder="Description (optional)"
-              className="max-h-40 overflow-y-auto rounded-md border border-line bg-bg px-3 py-2 text-sm placeholder:text-ink-soft/60"
-            />
-            <SubmitButton className="self-start rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover">
-              Create event
-            </SubmitButton>
-          </form>
-        )}
+        {canManage && <NewEventForm onCreate={createEvent} />}
 
         <EventsTabs
           openEvents={openEvents}

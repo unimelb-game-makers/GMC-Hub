@@ -3,11 +3,15 @@ import { notFound } from "next/navigation";
 import { requireAppUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Nav } from "@/components/nav";
+import { StudentActions } from "@/components/student-actions";
+import { updateMember, deleteMember } from "@/app/attendance/actions";
 
 interface MemberDetail {
   id: string;
   full_name: string;
   student_number: string | null;
+  course: string | null;
+  is_club_member: boolean;
 }
 
 interface EntryRow {
@@ -34,7 +38,7 @@ export default async function AttendanceStudentPage({
   const [{ data }, { data: entryData }] = await Promise.all([
     supabase
       .from("attendance_members")
-      .select("id, full_name, student_number")
+      .select("id, full_name, student_number, course, is_club_member")
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -52,13 +56,13 @@ export default async function AttendanceStudentPage({
       <Nav user={user} />
       <main className="mx-auto w-full max-w-5xl flex-1 p-4 sm:p-6">
         <Link
-          href="/attendance"
+          href="/attendance/students"
           className="text-sm text-ink-soft underline-offset-2 hover:underline"
         >
-          ← Attendance
+          ← All students
         </Link>
 
-        <div className="mt-2 flex items-center gap-3">
+        <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="font-display text-xl font-semibold tracking-tight">
             {member.full_name}
           </h1>
@@ -67,12 +71,35 @@ export default async function AttendanceStudentPage({
               {member.student_number}
             </span>
           )}
+          {member.course && (
+            <span className="rounded-full border border-line px-2 py-0.5 text-xs text-ink-soft">
+              {member.course}
+            </span>
+          )}
+          {member.is_club_member && (
+            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
+              Club member
+            </span>
+          )}
         </div>
         <p className="mt-1 text-sm text-ink-soft">
           {entries.length === 1
             ? "Checked in to 1 event"
             : `Checked in to ${entries.length} events`}
         </p>
+
+        <StudentActions
+          member={{
+            id: member.id,
+            fullName: member.full_name,
+            studentNumber: member.student_number,
+            course: member.course,
+            isClubMember: member.is_club_member,
+          }}
+          hasHistory={entries.length > 0}
+          onUpdate={updateMember.bind(null, member.id)}
+          onDelete={deleteMember.bind(null, member.id)}
+        />
 
         <ul className="mt-4 flex flex-col gap-2">
           {entries.map((entry) => (

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireAppUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Nav } from "@/components/nav";
@@ -71,9 +72,17 @@ export default async function AttendancePage() {
     <>
       <Nav user={user} />
       <main className="mx-auto w-full max-w-5xl flex-1 p-4 sm:p-6">
-        <h1 className="font-display text-xl font-semibold tracking-tight">
-          Attendance
-        </h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="font-display text-xl font-semibold tracking-tight">
+            Attendance
+          </h1>
+          <Link
+            href="/attendance/students"
+            className="text-sm text-accent underline-offset-2 hover:underline"
+          >
+            All students
+          </Link>
+        </div>
         <p className="mt-1 text-sm text-ink-soft">
           Pick an event to check people in, or search across every event at
           once.

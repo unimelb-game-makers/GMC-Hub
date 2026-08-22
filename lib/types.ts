@@ -51,12 +51,23 @@ export interface BankDetails {
   accountName: string | null;
 }
 
+export const EVENT_TYPES = ["function", "camp", "excursion", "other"] as const;
+export type EventType = (typeof EVENT_TYPES)[number];
+
+// startsAt/venue/eventTypes are required for new events (UMSU attendance
+// CSV export needs them) but nullable/empty on events created before this
+// existed — those can be edited to backfill them if the committee wants to
+// export their attendance too.
 export interface Event {
   id: string;
   title: string;
   description: string;
   createdBy: string;
   isOpen: boolean;
+  startsAt: string | null;
+  venue: string | null;
+  eventTypes: EventType[];
+  eventTypeOtherDetails: string | null;
   createdAt: string;
 }
 
@@ -101,6 +112,8 @@ export interface AttendanceMember {
   id: string;
   fullName: string;
   studentNumber: string | null;
+  course: string | null;
+  isClubMember: boolean;
   createdAt: string;
 }
 
