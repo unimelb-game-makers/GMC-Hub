@@ -68,6 +68,7 @@ export async function createVote(formData: FormData) {
   const { title, description, allowedRoles, opensAt, closesAt, revealVoters } =
     parseVoteFields(formData);
   const options = parseOptions(formData);
+  const allowMultipleChoices = !!formData.get("allow_multiple_choices");
 
   const admin = createAdminClient();
   const { data: vote, error } = await admin
@@ -80,6 +81,7 @@ export async function createVote(formData: FormData) {
       opens_at: opensAt ? opensAt.toISOString() : null,
       closes_at: closesAt.toISOString(),
       reveal_voters: revealVoters,
+      allow_multiple_choices: allowMultipleChoices,
     })
     .select("id")
     .single();
@@ -162,13 +164,16 @@ export async function updateVote(voteId: string, formData: FormData) {
   revalidatePath("/voting");
 }
 
-export async function castBallot(voteId: string, optionId: string) {
+// Amendable up until the vote closes: replaces the voter's previous
+// choice(s) with the new selection rather than adding to them, so casting
+// again is how you change your vote.
+export async function setBallots(voteId: string, optionIds: string[]) {
   const user = await requireAppUser();
 
   const supabase = await createClient();
   const { data: vote } = await supabase
     .from("votes")
-    .select("allowed_roles, opens_at, closes_at, closed_early_at")
+    .select("allowed_roles, allow_multiple_choices, opens_at, closes_at, closed_early_at")
     .eq("id", voteId)
     .maybeSingle();
   if (!vote) throw new Error("Vote not found");
@@ -184,16 +189,28 @@ export async function castBallot(voteId: string, optionId: string) {
     throw new Error("You're not eligible to vote in this one");
   }
 
-  const admin = createAdminClient();
-  const { error } = await admin.from("vote_ballots").insert({
-    vote_id: voteId,
-    option_id: optionId,
-    voter_id: user.id,
-  });
-  if (error) {
-    if (error.code === "23505") throw new Error("You've already voted in this one");
-    throw new Error(error.message);
+  const uniqueOptionIds = [...new Set(optionIds)];
+  if (uniqueOptionIds.length === 0) throw new Error("Select at least one option");
+  if (!vote.allow_multiple_choices && uniqueOptionIds.length > 1) {
+    throw new Error("This vote only allows one choice");
   }
+
+  const admin = createAdminClient();
+  const { error: deleteError } = await admin
+    .from("vote_ballots")
+    .delete()
+    .eq("vote_id", voteId)
+    .eq("voter_id", user.id);
+  if (deleteError) throw new Error(deleteError.message);
+
+  const { error } = await admin.from("vote_ballots").insert(
+    uniqueOptionIds.map((optionId) => ({
+      vote_id: voteId,
+      option_id: optionId,
+      voter_id: user.id,
+    }))
+  );
+  if (error) throw new Error(error.message);
 
   revalidatePath(`/voting/${voteId}`);
   revalidatePath("/voting");

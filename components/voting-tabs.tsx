@@ -79,7 +79,7 @@ export function VotingTabs({ votes }: { votes: VoteSummary[] }) {
                 {STATUS_LABEL[v.status]}
               </span>
               <span className="ml-auto text-xs text-ink-soft">
-                {v.ballotCount} ballots cast
+                {v.ballotCount === 1 ? "1 person voted" : `${v.ballotCount} people voted`}
               </span>
               {v.status !== "closed" && (
                 <span className="w-full text-xs text-ink-soft/70">

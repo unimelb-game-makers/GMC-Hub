@@ -2,21 +2,29 @@
 // read via useFormStatus — for forms driven by a manual onSubmit handler
 // rather than the <form action> mechanism (which resets the DOM directly
 // after the action settles, even for controlled fields like checkboxes).
+// Also usable as a plain standalone button (via onClick) outside any form.
 export function PendingButton({
   pending,
   children,
   pendingChildren,
   className = "",
+  type = "submit",
+  onClick,
+  disabled = false,
 }: {
   pending: boolean;
   children: React.ReactNode;
   pendingChildren?: React.ReactNode;
   className?: string;
+  type?: "submit" | "button";
+  onClick?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
-      type="submit"
-      disabled={pending}
+      type={type}
+      onClick={onClick}
+      disabled={pending || disabled}
       className={`${className} inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60`}
     >
       {pending && (

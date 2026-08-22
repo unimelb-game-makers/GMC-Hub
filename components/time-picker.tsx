@@ -39,6 +39,8 @@ export function TimePicker({
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(defaultValue);
   const containerRef = useRef<HTMLDivElement>(null);
+  const hourColRef = useRef<HTMLDivElement>(null);
+  const minuteColRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -51,6 +53,23 @@ export function TimePicker({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
+  // Scrolls each column to the selected value, or to the current time when
+  // nothing's picked yet, so opening an empty picker starts near "now"
+  // instead of the top of a 12/60-row list.
+  useEffect(() => {
+    if (!open) return;
+    for (const ref of [hourColRef, minuteColRef]) {
+      const target = ref.current?.querySelector('[data-scroll-target="true"]');
+      target?.scrollIntoView({ block: "center" });
+    }
+  }, [open]);
+
+  const now = new Date();
+  const nowHour24 = now.getHours();
+  const nowHour12 = nowHour24 % 12 === 0 ? 12 : nowHour24 % 12;
+  const nowMinute = now.getMinutes();
+  const nowIsPm = nowHour24 >= 12;
+
   const current = parse24h(value);
   const hour12 = current ? (current.hour24 % 12 === 0 ? 12 : current.hour24 % 12) : null;
   const minute = current?.minute ?? null;
@@ -60,9 +79,9 @@ export function TimePicker({
     ? `${pad(hour12 ?? 0)}:${pad(minute ?? 0)} ${isPm ? "pm" : "am"}`
     : "--:-- --";
 
-  const setHour = (h: number) => setValue(to24h(h, minute ?? 0, isPm ?? false));
-  const setMinute = (m: number) => setValue(to24h(hour12 ?? 12, m, isPm ?? false));
-  const setPeriod = (pm: boolean) => setValue(to24h(hour12 ?? 12, minute ?? 0, pm));
+  const setHour = (h: number) => setValue(to24h(h, minute ?? nowMinute, isPm ?? nowIsPm));
+  const setMinute = (m: number) => setValue(to24h(hour12 ?? nowHour12, m, isPm ?? nowIsPm));
+  const setPeriod = (pm: boolean) => setValue(to24h(hour12 ?? nowHour12, minute ?? nowMinute, pm));
 
   return (
     <div ref={containerRef} className="relative">
@@ -83,27 +102,35 @@ export function TimePicker({
       {open && (
         <div className="absolute right-0 z-30 mt-1 flex w-40 gap-1 rounded-lg border border-line bg-surface p-2 shadow-lg">
           {[
-            { items: HOURS_12, selected: hour12, onSelect: setHour },
-            { items: MINUTES, selected: minute, onSelect: setMinute },
+            { items: HOURS_12, selected: hour12, nowValue: nowHour12, onSelect: setHour, ref: hourColRef },
+            { items: MINUTES, selected: minute, nowValue: nowMinute, onSelect: setMinute, ref: minuteColRef },
           ].map((col, colIndex) => (
             <div
               key={colIndex}
+              ref={col.ref}
               className="h-40 flex-1 overflow-y-auto [scrollbar-width:thin] [scrollbar-color:var(--line)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-line"
             >
-              {col.items.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => col.onSelect(n)}
-                  className={`block w-full rounded-md px-2 py-1 text-center text-sm transition-colors ${
-                    col.selected === n
-                      ? "bg-accent text-accent-ink font-medium"
-                      : "text-ink hover:bg-bg"
-                  }`}
-                >
-                  {pad(n)}
-                </button>
-              ))}
+              {col.items.map((n) => {
+                const isSelected = col.selected === n;
+                const isNow = col.selected === null && n === col.nowValue;
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    data-scroll-target={isSelected || isNow ? "true" : undefined}
+                    onClick={() => col.onSelect(n)}
+                    className={`block w-full rounded-md px-2 py-1 text-center text-sm transition-colors ${
+                      isSelected
+                        ? "bg-accent text-accent-ink font-medium"
+                        : isNow
+                          ? "text-ink ring-1 ring-inset ring-accent/50 hover:bg-bg"
+                          : "text-ink hover:bg-bg"
+                    }`}
+                  >
+                    {pad(n)}
+                  </button>
+                );
+              })}
             </div>
           ))}
           <div className="flex flex-none flex-col gap-1">
@@ -116,8 +143,10 @@ export function TimePicker({
                 type="button"
                 onClick={() => setPeriod(p.pm)}
                 className={`rounded-md px-2 py-1 text-sm transition-colors ${
-                  isPm === p.pm
-                    ? "bg-accent text-accent-ink font-medium"
+                  (isPm ?? nowIsPm) === p.pm
+                    ? isPm === null
+                      ? "text-ink ring-1 ring-inset ring-accent/50"
+                      : "bg-accent text-accent-ink font-medium"
                     : "text-ink hover:bg-bg"
                 }`}
               >

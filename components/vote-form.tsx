@@ -13,6 +13,7 @@ const inputClass =
   "rounded-md border border-line bg-bg px-3 py-2 text-sm font-normal placeholder:text-ink-soft/60";
 
 export function VoteForm({
+  mode = "create",
   onSubmit,
   onCancel,
   submitLabel = "Create booth",
@@ -22,11 +23,13 @@ export function VoteForm({
   optionsLocked = false,
   defaultAllowedRoles = [],
   defaultRevealVoters = false,
+  defaultAllowMultipleChoices = false,
   defaultOpensDate = "",
   defaultOpensTime = "",
   defaultClosesDate = "",
   defaultClosesTime = "",
 }: {
+  mode?: "create" | "edit";
   onSubmit: (formData: FormData) => Promise<void>;
   onCancel?: () => void;
   submitLabel?: string;
@@ -36,6 +39,7 @@ export function VoteForm({
   optionsLocked?: boolean;
   defaultAllowedRoles?: Role[];
   defaultRevealVoters?: boolean;
+  defaultAllowMultipleChoices?: boolean;
   defaultOpensDate?: string;
   defaultOpensTime?: string;
   defaultClosesDate?: string;
@@ -91,6 +95,27 @@ export function VoteForm({
       </label>
 
       <VoteOptionsInput defaultOptions={defaultOptions} locked={optionsLocked} />
+
+      <div className="flex flex-col gap-1">
+        {mode === "create" ? (
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <Checkbox name="allow_multiple_choices" defaultChecked={defaultAllowMultipleChoices} />
+            Allow voters to select multiple options
+          </label>
+        ) : (
+          <p className="text-sm font-medium">
+            Multiple choices:{" "}
+            <span className="font-normal text-ink-soft">
+              {defaultAllowMultipleChoices ? "Yes" : "No"}
+            </span>
+          </p>
+        )}
+        <p className="text-xs text-ink-soft">
+          {mode === "create"
+            ? "Fixed once created, can't be changed afterwards."
+            : "Set at creation, can't be changed."}
+        </p>
+      </div>
 
       <div className="flex flex-col gap-1 text-sm font-medium">
         Who can vote

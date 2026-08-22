@@ -19,6 +19,7 @@ interface VoteRow {
 
 interface BallotRow {
   vote_id: string;
+  voter_id: string;
 }
 
 export default async function VotingPage() {
@@ -30,17 +31,25 @@ export default async function VotingPage() {
       .from("votes")
       .select("id, title, allowed_roles, opens_at, closes_at, closed_early_at, created_at")
       .order("created_at", { ascending: false }),
-    // Ballot counts need every voter's rows, not just the signed-in user's
-    // own (RLS on vote_ballots only exposes your own row), so this reads
+    // Ballot rows need every voter's, not just the signed-in user's own
+    // (RLS on vote_ballots only exposes your own row), so this reads
     // through the service role purely to compute an aggregate count.
-    createAdminClient().from("vote_ballots").select("vote_id"),
+    createAdminClient().from("vote_ballots").select("vote_id, voter_id"),
   ]);
   const votes = (voteData ?? []) as VoteRow[];
   const ballots = (ballotData ?? []) as BallotRow[];
 
-  const ballotCounts = new Map<string, number>();
+  // Distinct voters, not raw ballot rows: a multi-select vote lets one
+  // voter hold several option rows, which shouldn't inflate this count.
+  const votersByVote = new Map<string, Set<string>>();
   for (const b of ballots) {
-    ballotCounts.set(b.vote_id, (ballotCounts.get(b.vote_id) ?? 0) + 1);
+    const set = votersByVote.get(b.vote_id) ?? new Set<string>();
+    set.add(b.voter_id);
+    votersByVote.set(b.vote_id, set);
+  }
+  const ballotCounts = new Map<string, number>();
+  for (const [voteId, voters] of votersByVote) {
+    ballotCounts.set(voteId, voters.size);
   }
 
   const voteSummaries: VoteSummary[] = votes.map((v) => ({

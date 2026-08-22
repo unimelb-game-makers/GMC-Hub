@@ -36,6 +36,7 @@ export function VoteHeader({
     closesAt: string;
     closedEarlyAt: string | null;
     revealVoters: boolean;
+    allowMultipleChoices: boolean;
     creatorName: string;
   };
   options: string[];
@@ -49,6 +50,7 @@ export function VoteHeader({
     const opensParts = vote.opensAt ? toMelbourneParts(vote.opensAt) : null;
     return (
       <VoteForm
+        mode="edit"
         onSubmit={async (formData) => {
           await onUpdate(formData);
           setEditing(false);
@@ -61,6 +63,7 @@ export function VoteHeader({
         optionsLocked={optionsLocked}
         defaultAllowedRoles={vote.allowedRoles}
         defaultRevealVoters={vote.revealVoters}
+        defaultAllowMultipleChoices={vote.allowMultipleChoices}
         defaultClosesDate={closesParts.date}
         defaultClosesTime={closesParts.time}
         defaultOpensDate={opensParts?.date}

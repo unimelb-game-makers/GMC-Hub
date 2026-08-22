@@ -140,6 +140,8 @@ export interface Vote {
   description: string;
   createdBy: string;
   allowedRoles: Role[];
+  // Fixed at creation, never edited afterwards.
+  allowMultipleChoices: boolean;
   opensAt: string | null;
   closesAt: string;
   closedEarlyAt: string | null;

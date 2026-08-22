@@ -15,29 +15,55 @@ export function canVote(allowedRoles: Role[], userRoles: Role[]): boolean {
   return allowedRoles.length === 0 || allowedRoles.some((r) => userRoles.includes(r));
 }
 
-export interface VoteResult {
-  totalBallots: number;
-  counts: Record<string, number>;
-  winningOptionId: string | null;
-  isTie: boolean;
+export interface OptionResult {
+  count: number;
+  pct: number;
+  // Only meaningful for a multi-select vote, where every option is judged
+  // independently (more than 50% of participating voters chose it).
   passed: boolean;
 }
 
-// Tied votes fail. Otherwise the option with the most ballots passes only
-// if it has strictly more than 50% of all ballots cast.
+export interface VoteResult {
+  totalVoters: number;
+  options: Record<string, OptionResult>;
+  // Single-select only: the one option with the most ballots, or null on a
+  // tie. Multi-select votes have no single winner, since a voter can back
+  // more than one option at once.
+  winningOptionId: string | null;
+  isTie: boolean;
+  // Single-select only: whether the winning option passed with strictly
+  // more than 50% of voters. For multi-select, check each option's own
+  // `passed` in `options` instead.
+  passed: boolean;
+}
+
+// Percentages are of participating voters, not raw ballot rows: a
+// multi-select voter can appear in more than one option's count, so
+// "ballots cast" isn't the right denominator once that's allowed.
 export function resolveVote(
   optionIds: string[],
-  ballots: { optionId: string }[]
+  ballots: { optionId: string; voterId: string }[],
+  allowMultipleChoices: boolean
 ): VoteResult {
   const counts: Record<string, number> = Object.fromEntries(optionIds.map((id) => [id, 0]));
   for (const b of ballots) {
     counts[b.optionId] = (counts[b.optionId] ?? 0) + 1;
   }
-  const totalBallots = ballots.length;
-  if (totalBallots === 0) {
-    return { totalBallots, counts, winningOptionId: null, isTie: false, passed: false };
+  const totalVoters = new Set(ballots.map((b) => b.voterId)).size;
+
+  const options: Record<string, OptionResult> = {};
+  for (const id of optionIds) {
+    const count = counts[id];
+    const pct = totalVoters > 0 ? (count / totalVoters) * 100 : 0;
+    options[id] = { count, pct, passed: totalVoters > 0 && count / totalVoters > 0.5 };
   }
 
+  if (allowMultipleChoices || totalVoters === 0) {
+    return { totalVoters, options, winningOptionId: null, isTie: false, passed: false };
+  }
+
+  // Single-select: tied votes fail; otherwise the top option passes only
+  // with strictly more than 50% of participating voters.
   let topCount = -1;
   let topOptionIds: string[] = [];
   for (const id of optionIds) {
@@ -49,10 +75,9 @@ export function resolveVote(
       topOptionIds.push(id);
     }
   }
-
   const isTie = topOptionIds.length > 1;
   const winningOptionId = isTie ? null : topOptionIds[0];
-  const passed = !isTie && topCount / totalBallots > 0.5;
+  const passed = !isTie && topCount / totalVoters > 0.5;
 
-  return { totalBallots, counts, winningOptionId, isTie, passed };
+  return { totalVoters, options, winningOptionId, isTie, passed };
 }

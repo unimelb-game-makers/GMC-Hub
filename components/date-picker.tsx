@@ -139,6 +139,7 @@ export function DatePicker({
               if (day === null) return <span key={i} />;
               const iso = toISODate(viewYear, viewMonth, day);
               const isSelected = value === iso;
+              const isToday = iso === toISODate(today.getFullYear(), today.getMonth(), today.getDate());
               return (
                 <button
                   key={i}
@@ -150,7 +151,9 @@ export function DatePicker({
                   className={`flex h-7 w-7 items-center justify-center rounded-full text-xs transition-colors ${
                     isSelected
                       ? "bg-accent text-accent-ink font-medium"
-                      : "text-ink hover:bg-bg"
+                      : isToday
+                        ? "text-ink ring-1 ring-inset ring-accent/50 hover:bg-bg"
+                        : "text-ink hover:bg-bg"
                   }`}
                 >
                   {day}

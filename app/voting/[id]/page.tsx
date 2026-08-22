@@ -7,17 +7,17 @@ import { Nav } from "@/components/nav";
 import { SubmitButton } from "@/components/submit-button";
 import { VoteHeader } from "@/components/vote-header";
 import { VoteBallotForm } from "@/components/vote-ballot-form";
-import { VoteTally } from "@/components/vote-tally";
-import { VoteVoterList } from "@/components/vote-voter-list";
+import { VoteTally, type OptionVoters } from "@/components/vote-tally";
 import { voteStatus, canVote, resolveVote } from "@/lib/voting";
 import type { Role } from "@/lib/types";
-import { castBallot, closeVoteEarly, updateVote } from "../actions";
+import { setBallots, closeVoteEarly, updateVote } from "../actions";
 
 interface VoteDetail {
   id: string;
   title: string;
   description: string;
   allowed_roles: Role[];
+  allow_multiple_choices: boolean;
   opens_at: string | null;
   closes_at: string;
   closed_early_at: string | null;
@@ -38,6 +38,7 @@ interface OwnBallotRow {
 
 interface BallotRow {
   option_id: string;
+  voter_id: string;
 }
 
 export default async function VoteDetailPage({
@@ -53,7 +54,7 @@ export default async function VoteDetailPage({
     supabase
       .from("votes")
       .select(
-        "id, title, description, allowed_roles, opens_at, closes_at, closed_early_at, reveal_voters, created_at, creator:app_users!votes_created_by_fkey (display_name)"
+        "id, title, description, allowed_roles, allow_multiple_choices, opens_at, closes_at, closed_early_at, reveal_voters, created_at, creator:app_users!votes_created_by_fkey (display_name)"
       )
       .eq("id", id)
       .maybeSingle(),
@@ -66,13 +67,12 @@ export default async function VoteDetailPage({
       .from("vote_ballots")
       .select("option_id")
       .eq("vote_id", id)
-      .eq("voter_id", user.id)
-      .maybeSingle(),
+      .eq("voter_id", user.id),
   ]);
   if (!data) notFound();
   const vote = data as unknown as VoteDetail;
   const options = (optionData ?? []) as OptionRow[];
-  const ownBallot = ownBallotData as OwnBallotRow | null;
+  const ownSelectedOptionIds = ((ownBallotData ?? []) as OwnBallotRow[]).map((b) => b.option_id);
 
   const status = voteStatus({
     opensAt: vote.opens_at,
@@ -83,43 +83,38 @@ export default async function VoteDetailPage({
   const canManage = hasRole(user, "exec");
 
   // Every voter's ballots, not just this user's own (RLS on vote_ballots
-  // only exposes your own row), read through the service role purely to
+  // only exposes your own rows), read through the service role purely to
   // compute aggregates: a total count regardless of status, and the full
-  // per-option tally only once the vote is closed (ballot secrecy while
-  // it's still open).
+  // per-option tally (plus, if enabled, who voted for what) only once the
+  // vote is closed (ballot secrecy while it's still open).
   const { data: allBallotData } = await createAdminClient()
     .from("vote_ballots")
-    .select("option_id")
+    .select("option_id, voter_id")
     .eq("vote_id", id);
   const allBallots = (allBallotData ?? []) as BallotRow[];
-  const ballotCount = allBallots.length;
+  const ballotCount = new Set(allBallots.map((b) => b.voter_id)).size;
   const result = resolveVote(
     options.map((o) => o.id),
-    allBallots.map((b) => ({ optionId: b.option_id }))
+    allBallots.map((b) => ({ optionId: b.option_id, voterId: b.voter_id })),
+    vote.allow_multiple_choices
   );
 
-  const votedOptionLabel = ownBallot
-    ? options.find((o) => o.id === ownBallot.option_id)?.label
-    : null;
-
-  let voterBallots: { voterName: string; optionLabel: string }[] = [];
+  let voters: OptionVoters[] | undefined;
   if (status === "closed" && vote.reveal_voters) {
     const { data: namedBallotData } = await createAdminClient()
       .from("vote_ballots")
-      .select(
-        "option_id, voter:app_users!vote_ballots_voter_id_fkey (display_name)"
-      )
+      .select("option_id, voter:app_users!vote_ballots_voter_id_fkey (display_name)")
       .eq("vote_id", id);
-    const optionLabelById = new Map(options.map((o) => [o.id, o.label]));
-    voterBallots = (
-      (namedBallotData ?? []) as unknown as {
-        option_id: string;
-        voter: { display_name: string } | null;
-      }[]
-    ).map((b) => ({
-      voterName: b.voter?.display_name ?? "unknown",
-      optionLabel: optionLabelById.get(b.option_id) ?? "unknown",
-    }));
+    const byOption = new Map<string, string[]>();
+    for (const b of (namedBallotData ?? []) as unknown as {
+      option_id: string;
+      voter: { display_name: string } | null;
+    }[]) {
+      const list = byOption.get(b.option_id) ?? [];
+      list.push(b.voter?.display_name ?? "unknown");
+      byOption.set(b.option_id, list);
+    }
+    voters = options.map((o) => ({ optionId: o.id, voterNames: byOption.get(o.id) ?? [] }));
   }
 
   return (
@@ -145,6 +140,7 @@ export default async function VoteDetailPage({
             closesAt: vote.closes_at,
             closedEarlyAt: vote.closed_early_at,
             revealVoters: vote.reveal_voters,
+            allowMultipleChoices: vote.allow_multiple_choices,
             creatorName: vote.creator?.display_name ?? "unknown",
           }}
           options={options.map((o) => o.label)}
@@ -176,19 +172,16 @@ export default async function VoteDetailPage({
                 <p className="rounded-lg border border-line bg-surface p-3 text-sm text-ink-soft">
                   You&apos;re not eligible to vote in this one.
                 </p>
-              ) : ownBallot ? (
-                <p className="rounded-lg border border-line bg-surface p-3 text-sm">
-                  You voted for <span className="font-medium">{votedOptionLabel}</span>.
-                  Results are revealed once voting closes.
-                </p>
               ) : (
                 <VoteBallotForm
                   options={options.map((o) => ({ id: o.id, label: o.label }))}
-                  onCastBallot={castBallot.bind(null, vote.id)}
+                  allowMultiple={vote.allow_multiple_choices}
+                  initialSelectedOptionIds={ownSelectedOptionIds}
+                  onSubmit={setBallots.bind(null, vote.id)}
                 />
               )}
               <p className="mt-3 text-xs text-ink-soft">
-                {ballotCount === 1 ? "1 ballot cast so far." : `${ballotCount} ballots cast so far.`}
+                {ballotCount === 1 ? "1 person has voted so far." : `${ballotCount} people have voted so far.`}
               </p>
               {canManage && (
                 <form action={closeVoteEarly.bind(null, vote.id)} className="mt-3">
@@ -202,27 +195,33 @@ export default async function VoteDetailPage({
 
           {status === "closed" && (
             <>
-              <div
-                className={`mb-3 inline-block rounded-full px-3 py-1 text-sm font-medium ${
-                  result.totalBallots === 0
-                    ? "bg-line text-ink-soft"
+              {!vote.allow_multiple_choices && (
+                <div
+                  className={`mb-3 inline-block rounded-full px-3 py-1 text-sm font-medium ${
+                    result.totalVoters === 0
+                      ? "bg-line text-ink-soft"
+                      : result.isTie
+                        ? "bg-[#4a2222] text-[#f0a3a3]"
+                        : result.passed
+                          ? "bg-[#26402f] text-[#8fd6ac]"
+                          : "bg-[#4a2222] text-[#f0a3a3]"
+                  }`}
+                >
+                  {result.totalVoters === 0
+                    ? "No votes cast"
                     : result.isTie
-                      ? "bg-[#4a2222] text-[#f0a3a3]"
+                      ? "Tied — failed"
                       : result.passed
-                        ? "bg-[#26402f] text-[#8fd6ac]"
-                        : "bg-[#4a2222] text-[#f0a3a3]"
-                }`}
-              >
-                {result.totalBallots === 0
-                  ? "No votes cast"
-                  : result.isTie
-                    ? "Tied — failed"
-                    : result.passed
-                      ? "Passed"
-                      : "Failed"}
-              </div>
-              <VoteTally options={options} result={result} />
-              {vote.reveal_voters && <VoteVoterList ballots={voterBallots} />}
+                        ? "Passed"
+                        : "Failed"}
+                </div>
+              )}
+              <VoteTally
+                options={options}
+                result={result}
+                allowMultipleChoices={vote.allow_multiple_choices}
+                voters={voters}
+              />
             </>
           )}
         </section>
