@@ -116,6 +116,11 @@ export function highestRoleLabel(roles: Role[]): string | null {
   return null;
 }
 
+// Empty allowedRoles means the vote's creator left it open to anyone.
+export function formatEligibleRoles(roles: Role[]): string {
+  return roles.length === 0 ? "Anyone signed in" : roles.map((r) => ROLE_LABELS[r]).join(", ");
+}
+
 export const STATUS_LABELS: Record<RequestStatus, string> = {
   pending_approval: "Pending approval",
   approved: "Approved to pay",

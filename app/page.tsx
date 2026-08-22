@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { RequestStatus } from "@/lib/types";
 import { Nav } from "@/components/nav";
 import { HomeEventsTabs, type HomeEventSummary } from "@/components/home-events-tabs";
+import { voteStatus, canVote } from "@/lib/voting";
+import type { Role } from "@/lib/types";
 
 interface RequestRow {
   event_id: string;
@@ -22,11 +24,23 @@ interface EventRow {
   created_at: string;
 }
 
+interface VoteRow {
+  id: string;
+  allowed_roles: Role[];
+  opens_at: string | null;
+  closes_at: string;
+  closed_early_at: string | null;
+}
+
+interface OwnBallotRow {
+  vote_id: string;
+}
+
 export default async function HubHome() {
   const user = await requireAppUser();
   const supabase = await createClient();
 
-  const [{ data }, { data: attendanceData }, { data: eventData }] =
+  const [{ data }, { data: attendanceData }, { data: eventData }, { data: voteData }, { data: ownBallotData }] =
     await Promise.all([
       supabase.from("requests").select("event_id, submitter_id, status"),
       supabase.from("attendance_entries").select("event_id"),
@@ -34,10 +48,22 @@ export default async function HubHome() {
         .from("events")
         .select("id, title, is_open, created_at")
         .order("created_at", { ascending: false }),
+      supabase.from("votes").select("id, allowed_roles, opens_at, closes_at, closed_early_at"),
+      supabase.from("vote_ballots").select("vote_id").eq("voter_id", user.id),
     ]);
   const requests = (data ?? []) as unknown as RequestRow[];
   const attendance = (attendanceData ?? []) as AttendanceRow[];
   const events = (eventData ?? []) as EventRow[];
+  const votes = (voteData ?? []) as VoteRow[];
+  const votedIds = new Set(((ownBallotData ?? []) as OwnBallotRow[]).map((b) => b.vote_id));
+
+  const votesToCast = votes.filter(
+    (v) =>
+      voteStatus({ opensAt: v.opens_at, closesAt: v.closes_at, closedEarlyAt: v.closed_early_at }) ===
+        "open" &&
+      canVote(v.allowed_roles, user.roles) &&
+      !votedIds.has(v.id)
+  ).length;
 
   let needsAction = 0;
   if (hasRole(user, "exec")) {
@@ -120,17 +146,23 @@ export default async function HubHome() {
             </span>
           </Link>
 
-          <div className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-4 opacity-60">
+          <Link
+            href="/voting"
+            className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-4 transition-colors hover:border-accent/40"
+          >
             <span className="font-display text-sm font-semibold tracking-tight">
               Voting Booth
             </span>
             <p className="text-sm text-ink-soft">
               Timed motions with role-gated eligibility.
             </p>
-            <span className="mt-auto text-xs font-medium uppercase tracking-wide text-ink-soft">
-              Coming soon
+            <span className="mt-auto text-2xl font-semibold text-accent">
+              {votesToCast}
             </span>
-          </div>
+            <span className="text-xs text-ink-soft">
+              {votesToCast === 1 ? "vote waiting on you" : "votes waiting on you"}
+            </span>
+          </Link>
         </div>
 
         <section className="mt-8">

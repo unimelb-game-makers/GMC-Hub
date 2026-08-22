@@ -128,3 +128,36 @@ export interface AttendanceEntry {
   checkedInBy: string;
   createdAt: string;
 }
+
+// Computed at read time from opens_at/closes_at/closed_early_at, never
+// stored: there's no scheduler in this project to flip a stored status.
+export type VoteStatus = "upcoming" | "open" | "closed";
+
+// allowedRoles empty means any signed-in member (any role) can vote.
+export interface Vote {
+  id: string;
+  title: string;
+  description: string;
+  createdBy: string;
+  allowedRoles: Role[];
+  opensAt: string | null;
+  closesAt: string;
+  closedEarlyAt: string | null;
+  createdAt: string;
+}
+
+export interface VoteOption {
+  id: string;
+  voteId: string;
+  label: string;
+  displayOrder: number;
+}
+
+// One per person per vote (DB unique constraint on vote_id + voter_id).
+export interface VoteBallot {
+  id: string;
+  voteId: string;
+  optionId: string;
+  voterId: string;
+  createdAt: string;
+}
