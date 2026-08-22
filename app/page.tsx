@@ -13,9 +13,12 @@ export default async function HubHome() {
   const user = await requireAppUser();
   const supabase = await createClient();
 
-  const { data } = await supabase
-    .from("requests")
-    .select("submitter_id, status");
+  const [{ data }, { count: attendanceCount }] = await Promise.all([
+    supabase.from("requests").select("submitter_id, status"),
+    supabase
+      .from("attendance_entries")
+      .select("id", { count: "exact", head: true }),
+  ]);
   const requests = (data ?? []) as unknown as RequestRow[];
 
   let needsAction = 0;
@@ -62,17 +65,23 @@ export default async function HubHome() {
             </span>
           </Link>
 
-          <div className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-4 opacity-60">
+          <Link
+            href="/attendance"
+            className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-4 transition-colors hover:border-accent/40"
+          >
             <span className="font-display text-sm font-semibold tracking-tight">
               Attendance
             </span>
             <p className="text-sm text-ink-soft">
               Check members in at events and export the list for UMSU.
             </p>
-            <span className="mt-auto text-xs font-medium uppercase tracking-wide text-ink-soft">
-              Coming soon
+            <span className="mt-auto text-2xl font-semibold text-accent">
+              {attendanceCount ?? 0}
             </span>
-          </div>
+            <span className="text-xs text-ink-soft">
+              {attendanceCount === 1 ? "person checked in" : "people checked in"}
+            </span>
+          </Link>
 
           <div className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-4 opacity-60">
             <span className="font-display text-sm font-semibold tracking-tight">

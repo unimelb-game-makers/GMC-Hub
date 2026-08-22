@@ -36,6 +36,12 @@ export function Nav({ user }: { user: AppUser }) {
         >
           Events
         </Link>
+        <Link
+          href="/attendance"
+          className="text-nav-ink/70 transition-colors hover:text-nav-ink"
+        >
+          Attendance
+        </Link>
         <div className="ml-auto flex items-center gap-3">
           <span className="hidden items-center gap-2 sm:flex">
             <span className="text-nav-ink/70">

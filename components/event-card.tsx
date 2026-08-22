@@ -24,6 +24,7 @@ export interface EventCardProps {
     creatorName: string;
   };
   counts: Partial<Record<RequestStatus, number>>;
+  attendanceCount: number;
   canManage: boolean;
   onToggleOpen: () => Promise<void>;
   onUpdate: (formData: FormData) => Promise<void>;
@@ -33,13 +34,14 @@ export interface EventCardProps {
 export function EventCard({
   event,
   counts,
+  attendanceCount,
   canManage,
   onToggleOpen,
   onUpdate,
   onDelete,
 }: EventCardProps) {
   const [editing, setEditing] = useState(false);
-  const hasRequests = Object.keys(counts).length > 0;
+  const deleteBlocked = Object.keys(counts).length > 0 || attendanceCount > 0;
 
   if (editing) {
     return (
@@ -137,7 +139,7 @@ export function EventCard({
             </div>
             <DeleteEventButton
               eventTitle={event.title}
-              hasRequests={hasRequests}
+              blocked={deleteBlocked}
               onDelete={onDelete}
             />
           </div>

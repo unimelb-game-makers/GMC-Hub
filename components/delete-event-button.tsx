@@ -8,17 +8,17 @@ const dangerButtonClass =
 
 export function DeleteEventButton({
   eventTitle,
-  hasRequests,
+  blocked,
   onDelete,
 }: {
   eventTitle: string;
-  hasRequests: boolean;
+  blocked: boolean;
   onDelete: () => Promise<void>;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [showTip, setShowTip] = useState(false);
 
-  if (hasRequests) {
+  if (blocked) {
     return (
       <span
         className="relative inline-block"
@@ -34,7 +34,7 @@ export function DeleteEventButton({
             role="tooltip"
             className="absolute bottom-full right-0 z-10 mb-2 w-48 rounded-md border border-line bg-nav px-3 py-2 text-xs font-normal text-nav-ink shadow-lg"
           >
-            This event has requests, close it instead.
+            This event has requests or attendance recorded. Close it instead.
           </span>
         )}
       </span>

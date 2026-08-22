@@ -25,15 +25,17 @@ export default async function EventsPage() {
   const user = await requireAppUser();
   const supabase = await createClient();
 
-  const [{ data }, { data: statusData }] = await Promise.all([
-    supabase
-      .from("events")
-      .select(
-        "id, title, description, is_open, created_at, closed_at, creator:app_users!events_created_by_fkey (display_name)"
-      )
-      .order("created_at", { ascending: false }),
-    supabase.from("requests").select("event_id, status"),
-  ]);
+  const [{ data }, { data: statusData }, { data: attendanceData }] =
+    await Promise.all([
+      supabase
+        .from("events")
+        .select(
+          "id, title, description, is_open, created_at, closed_at, creator:app_users!events_created_by_fkey (display_name)"
+        )
+        .order("created_at", { ascending: false }),
+      supabase.from("requests").select("event_id, status"),
+      supabase.from("attendance_entries").select("event_id"),
+    ]);
   const events = (data ?? []) as unknown as EventRow[];
   const statusRows = (statusData ?? []) as RequestStatusRow[];
   const statusCounts = new Map<string, Partial<Record<RequestStatus, number>>>();
@@ -41,6 +43,10 @@ export default async function EventsPage() {
     const counts = statusCounts.get(row.event_id) ?? {};
     counts[row.status] = (counts[row.status] ?? 0) + 1;
     statusCounts.set(row.event_id, counts);
+  }
+  const attendanceCounts = new Map<string, number>();
+  for (const row of (attendanceData ?? []) as { event_id: string }[]) {
+    attendanceCounts.set(row.event_id, (attendanceCounts.get(row.event_id) ?? 0) + 1);
   }
 
   const canManage = hasRole(user, "exec") || hasRole(user, "payment_manager");
@@ -55,6 +61,7 @@ export default async function EventsPage() {
       creatorName: event.creator?.display_name ?? "unknown",
     },
     counts: statusCounts.get(event.id) ?? {},
+    attendanceCount: attendanceCounts.get(event.id) ?? 0,
     onToggleOpen: setEventOpen.bind(null, event.id, !event.is_open),
     onUpdate: updateEvent.bind(null, event.id),
     onDelete: deleteEvent.bind(null, event.id),

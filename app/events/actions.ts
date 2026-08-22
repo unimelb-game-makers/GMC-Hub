@@ -63,21 +63,35 @@ export async function updateEvent(eventId: string, formData: FormData) {
   revalidatePath(`/events/${eventId}`);
 }
 
-// Only for events created by mistake: refuse to delete once any request
-// has been made under it (close it instead, so the history is kept).
+// Only for events created by mistake: refuse to delete once any request or
+// attendance entry has been made under it (close it instead, so the
+// history is kept).
 export async function deleteEvent(eventId: string) {
   const user = await requireAppUser();
   if (!canManageEvents(user)) throw new Error("Not allowed");
 
   const admin = createAdminClient();
-  const { count, error: countError } = await admin
-    .from("requests")
-    .select("id", { count: "exact", head: true })
-    .eq("event_id", eventId);
+  const [{ count, error: countError }, { count: attendanceCount, error: attendanceError }] =
+    await Promise.all([
+      admin
+        .from("requests")
+        .select("id", { count: "exact", head: true })
+        .eq("event_id", eventId),
+      admin
+        .from("attendance_entries")
+        .select("id", { count: "exact", head: true })
+        .eq("event_id", eventId),
+    ]);
   if (countError) throw new Error(countError.message);
+  if (attendanceError) throw new Error(attendanceError.message);
   if (count && count > 0) {
     throw new Error(
       "Can't delete an event with requests under it. Close it instead."
+    );
+  }
+  if (attendanceCount && attendanceCount > 0) {
+    throw new Error(
+      "Can't delete an event with attendance recorded. Close it instead."
     );
   }
 

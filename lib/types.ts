@@ -92,3 +92,15 @@ export interface StatusHistoryEntry {
   paidAt: string | null;
   createdAt: string;
 }
+
+// One row per person checked in at an event. Any signed-in committee or
+// subcommittee member can add or remove entries on any event, not just the
+// event's creator.
+export interface AttendanceEntry {
+  id: string;
+  eventId: string;
+  fullName: string;
+  studentNumber: string | null;
+  checkedInBy: string;
+  createdAt: string;
+}

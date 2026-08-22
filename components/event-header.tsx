@@ -21,7 +21,7 @@ interface EventHeaderProps {
     creatorName: string;
   };
   canManage: boolean;
-  hasRequests: boolean;
+  deleteBlocked: boolean;
   onToggleOpen: () => Promise<void>;
   onUpdate: (formData: FormData) => Promise<void>;
   onDelete: () => Promise<void>;
@@ -30,7 +30,7 @@ interface EventHeaderProps {
 export function EventHeader({
   event,
   canManage,
-  hasRequests,
+  deleteBlocked,
   onToggleOpen,
   onUpdate,
   onDelete,
@@ -117,7 +117,7 @@ export function EventHeader({
           </form>
           <DeleteEventButton
             eventTitle={event.title}
-            hasRequests={hasRequests}
+            blocked={deleteBlocked}
             onDelete={onDelete}
           />
         </div>
