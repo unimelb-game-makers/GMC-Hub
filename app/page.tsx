@@ -43,7 +43,7 @@ export default async function HubHome() {
           GMC Hub
         </h1>
         <p className="mt-1 text-sm text-ink-soft">
-          Everything the committee runs, in one place.
+          All GMC committee essentials.
         </p>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">

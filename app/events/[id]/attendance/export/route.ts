@@ -3,9 +3,8 @@ import { requireAppUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 interface AttendanceRow {
-  full_name: string;
-  student_number: string | null;
   created_at: string;
+  member: { full_name: string; student_number: string | null } | null;
 }
 
 // Wraps a field in quotes and escapes any quotes inside it, only when the
@@ -33,20 +32,24 @@ export async function GET(
     supabase.from("events").select("title").eq("id", id).maybeSingle(),
     supabase
       .from("attendance_entries")
-      .select("full_name, student_number, created_at")
+      .select(
+        "created_at, member:attendance_members!attendance_entries_member_id_fkey (full_name, student_number)"
+      )
       .eq("event_id", id)
       .order("created_at", { ascending: true }),
   ]);
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
-  const entries = (data ?? []) as AttendanceRow[];
+  const entries = (data ?? []) as unknown as AttendanceRow[];
 
+  // UMSU's own attendance form uses 'N/A' for this column when the
+  // attendee isn't a student, so the export matches that convention.
   const rows = [
     ["Name", "Student number", "Checked in at"],
     ...entries.map((e) => [
-      e.full_name,
-      e.student_number ?? "",
+      e.member?.full_name ?? "unknown",
+      e.member?.student_number ?? "N/A",
       new Date(e.created_at).toLocaleString("en-AU"),
     ]),
   ];

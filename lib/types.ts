@@ -93,14 +93,25 @@ export interface StatusHistoryEntry {
   createdAt: string;
 }
 
-// One row per person checked in at an event. Any signed-in committee or
+// A student (or other attendee) recorded once and reused across every
+// event they attend. studentNumber is a University of Melbourne student
+// number (exactly 7 digits) when the member is a student, null otherwise
+// (rendered as 'N/A' on CSV export, matching UMSU's own attendance form).
+export interface AttendanceMember {
+  id: string;
+  fullName: string;
+  studentNumber: string | null;
+  createdAt: string;
+}
+
+// One row per member checked in at an event. Any signed-in committee or
 // subcommittee member can add or remove entries on any event, not just the
-// event's creator.
+// event's creator. A member can only appear once per event (DB unique
+// constraint on event_id + member_id).
 export interface AttendanceEntry {
   id: string;
   eventId: string;
-  fullName: string;
-  studentNumber: string | null;
+  memberId: string;
   checkedInBy: string;
   createdAt: string;
 }

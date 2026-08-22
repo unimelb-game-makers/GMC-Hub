@@ -10,37 +10,29 @@ export interface AttendanceEventSummary {
   count: number;
 }
 
-export interface AttendanceSearchEntry {
+export interface AttendanceMemberSummary {
   id: string;
   fullName: string;
   studentNumber: string | null;
-  eventId: string;
-  eventTitle: string;
-  createdAt: string;
+  eventCount: number;
 }
-
-const dateFormatter = new Intl.DateTimeFormat("en-AU", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
 
 export function AttendanceSearch({
   events,
-  entries,
+  members,
 }: {
   events: AttendanceEventSummary[];
-  entries: AttendanceSearchEntry[];
+  members: AttendanceMemberSummary[];
 }) {
   const [query, setQuery] = useState("");
   const [eventTab, setEventTab] = useState<"open" | "previous">("open");
 
   const q = query.trim().toLowerCase();
   const matches = q
-    ? entries.filter(
-        (e) =>
-          e.fullName.toLowerCase().includes(q) ||
-          (e.studentNumber ?? "").toLowerCase().includes(q)
+    ? members.filter(
+        (m) =>
+          m.fullName.toLowerCase().includes(q) ||
+          (m.studentNumber ?? "").includes(q)
       )
     : [];
 
@@ -53,34 +45,35 @@ export function AttendanceSearch({
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search every event by name or student number"
+        placeholder="Search every student by name or student number"
         className="w-full max-w-md rounded-md border border-line bg-surface px-3 py-2 text-sm placeholder:text-ink-soft/60"
       />
 
       {q ? (
         <ul className="flex flex-col gap-2">
-          {matches.map((entry) => (
-            <li key={entry.id}>
+          {matches.map((member) => (
+            <li key={member.id}>
               <Link
-                href={`/events/${entry.eventId}?tab=attendance`}
+                href={`/attendance/students/${member.id}`}
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line bg-surface p-3 text-sm transition-colors hover:border-accent/40"
               >
-                <span className="font-medium">{entry.fullName}</span>
-                {entry.studentNumber && (
+                <span className="font-medium">{member.fullName}</span>
+                {member.studentNumber && (
                   <span className="font-mono text-ink-soft">
-                    {entry.studentNumber}
+                    {member.studentNumber}
                   </span>
                 )}
                 <span className="ml-auto text-xs text-ink-soft">
-                  {entry.eventTitle} ·{" "}
-                  {dateFormatter.format(new Date(entry.createdAt))}
+                  {member.eventCount === 1
+                    ? "1 event attended"
+                    : `${member.eventCount} events attended`}
                 </span>
               </Link>
             </li>
           ))}
           {matches.length === 0 && (
             <li className="py-8 text-center text-sm text-ink-soft/70">
-              No one matching &ldquo;{query}&rdquo; has been checked in anywhere.
+              No one matching &ldquo;{query}&rdquo; has ever been checked in.
             </li>
           )}
         </ul>

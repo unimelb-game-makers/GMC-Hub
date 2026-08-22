@@ -161,8 +161,8 @@ function parseBankDetails(formData: FormData) {
     const account = String(formData.get("account_number") ?? "").replace(/\D/g, "");
     if (!accountName) throw new Error("Account name is required");
     if (!/^\d{6}$/.test(bsb)) throw new Error("BSB must be 6 digits");
-    if (!/^\d{4,10}$/.test(account)) {
-      throw new Error("Account number must be 4 to 10 digits");
+    if (!/^\d{6,9}$/.test(account)) {
+      throw new Error("Account number must be 6 to 9 digits");
     }
     return {
       payment_method: "bank_transfer" as const,

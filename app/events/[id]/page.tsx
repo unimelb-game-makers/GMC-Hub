@@ -6,11 +6,19 @@ import { Nav } from "@/components/nav";
 import { StatusBadge } from "@/components/status-badge";
 import { EventHeader } from "@/components/event-header";
 import { EventDetailTabs } from "@/components/event-detail-tabs";
-import { AttendanceList, type AttendanceEntryRow } from "@/components/attendance-list";
+import {
+  AttendanceList,
+  type AttendanceEntryRow,
+  type AttendanceMemberOption,
+} from "@/components/attendance-list";
 import { formatAUD, CATEGORY_LABELS } from "@/lib/format";
 import { REQUEST_STATUSES, type Category, type RequestStatus } from "@/lib/types";
 import { setEventOpen, updateEvent, deleteEvent } from "../actions";
-import { addAttendanceEntry, removeAttendanceEntry } from "@/app/attendance/actions";
+import {
+  checkInMember,
+  addNewMemberAndCheckIn,
+  removeAttendanceEntry,
+} from "@/app/attendance/actions";
 
 interface EventDetail {
   id: string;
@@ -35,10 +43,16 @@ interface RequestRow {
 
 interface AttendanceRow {
   id: string;
+  member_id: string;
+  created_at: string;
+  member: { full_name: string; student_number: string | null } | null;
+  checked_in_by_user: { display_name: string } | null;
+}
+
+interface MemberRow {
+  id: string;
   full_name: string;
   student_number: string | null;
-  created_at: string;
-  checked_in_by_user: { display_name: string } | null;
 }
 
 const cardClass = "rounded-lg border border-line bg-surface p-4";
@@ -60,7 +74,7 @@ export default async function EventDetailPage({
   const user = await requireAppUser();
   const supabase = await createClient();
 
-  const [{ data }, { data: requestData }, { data: attendanceData }] =
+  const [{ data }, { data: requestData }, { data: attendanceData }, { data: memberData }] =
     await Promise.all([
       supabase
         .from("events")
@@ -79,10 +93,16 @@ export default async function EventDetailPage({
       supabase
         .from("attendance_entries")
         .select(
-          "id, full_name, student_number, created_at, checked_in_by_user:app_users!attendance_entries_checked_in_by_fkey (display_name)"
+          "id, member_id, created_at, member:attendance_members!attendance_entries_member_id_fkey (full_name, student_number), checked_in_by_user:app_users!attendance_entries_checked_in_by_fkey (display_name)"
         )
         .eq("event_id", id)
         .order("created_at", { ascending: false }),
+      // Full roster, for the check-in search box (search-and-select instead
+      // of re-entering a returning student's details).
+      supabase
+        .from("attendance_members")
+        .select("id, full_name, student_number")
+        .order("full_name", { ascending: true }),
     ]);
   if (!data) notFound();
   const event = data as unknown as EventDetail;
@@ -90,10 +110,18 @@ export default async function EventDetailPage({
   const attendance = (attendanceData ?? []) as unknown as AttendanceRow[];
   const attendanceEntries: AttendanceEntryRow[] = attendance.map((a) => ({
     id: a.id,
-    fullName: a.full_name,
-    studentNumber: a.student_number,
+    memberId: a.member_id,
+    fullName: a.member?.full_name ?? "unknown",
+    studentNumber: a.member?.student_number ?? null,
     createdAt: a.created_at,
     checkedInByName: a.checked_in_by_user?.display_name ?? "unknown",
+  }));
+  const members: AttendanceMemberOption[] = (
+    (memberData ?? []) as MemberRow[]
+  ).map((m) => ({
+    id: m.id,
+    fullName: m.full_name,
+    studentNumber: m.student_number,
   }));
 
   const canManage = hasRole(user, "exec") || hasRole(user, "payment_manager");
@@ -209,7 +237,9 @@ export default async function EventDetailPage({
           attendance={
             <AttendanceList
               entries={attendanceEntries}
-              onAdd={addAttendanceEntry.bind(null, event.id)}
+              members={members}
+              onCheckInExisting={checkInMember.bind(null, event.id)}
+              onAddNew={addNewMemberAndCheckIn.bind(null, event.id)}
               onRemove={removeAttendanceEntry.bind(null, event.id)}
               exportHref={`/events/${event.id}/attendance/export`}
             />
