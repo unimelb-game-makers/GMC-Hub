@@ -10,7 +10,9 @@ const DEV_EMAIL = "dev-bypass@gmc.local";
 const DEV_PASSWORD = "dev-bypass-not-a-real-secret";
 
 export async function GET(request: Request) {
-  if (!DEV_BYPASS_AUTH) {
+  // Defense in depth: even if DEV_BYPASS_AUTH were ever set by mistake in a
+  // deployed environment, never grant this on Vercel's production env.
+  if (!DEV_BYPASS_AUTH || process.env.VERCEL_ENV === "production") {
     return new NextResponse("Not found", { status: 404 });
   }
 

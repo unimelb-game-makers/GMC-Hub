@@ -134,7 +134,10 @@ export async function updateVote(voteId: string, formData: FormData) {
     .select("id", { count: "exact", head: true })
     .eq("vote_id", voteId);
 
-  const { error } = await admin
+  // Guards against a concurrent closeVoteEarly (or another edit) landing
+  // between the status check above and this write: only succeeds if the
+  // vote is still exactly as read.
+  const { data: updated, error } = await admin
     .from("votes")
     .update({
       title,
@@ -144,8 +147,13 @@ export async function updateVote(voteId: string, formData: FormData) {
       closes_at: closesAt.toISOString(),
       ...(ballotCount ? {} : { reveal_voters: revealVoters }),
     })
-    .eq("id", voteId);
+    .eq("id", voteId)
+    .is("closed_early_at", null)
+    .select("id");
   if (error) throw new Error(error.message);
+  if (!updated || updated.length === 0) {
+    throw new Error("This vote has closed and can no longer be edited");
+  }
 
   if (!ballotCount) {
     const options = parseOptions(formData);
@@ -196,6 +204,22 @@ export async function setBallots(voteId: string, optionIds: string[]) {
   }
 
   const admin = createAdminClient();
+
+  // Options are otherwise a free-form client-supplied list of ids: without
+  // this check, a ballot could be cast against an option belonging to a
+  // different vote entirely (vote_options has no per-vote uniqueness
+  // constraint stopping it), counting the voter without landing on any of
+  // this vote's real options.
+  const { data: validOptions, error: optionsCheckError } = await admin
+    .from("vote_options")
+    .select("id")
+    .eq("vote_id", voteId)
+    .in("id", uniqueOptionIds);
+  if (optionsCheckError) throw new Error(optionsCheckError.message);
+  if ((validOptions ?? []).length !== uniqueOptionIds.length) {
+    throw new Error("One or more selected options are invalid");
+  }
+
   const { error: deleteError } = await admin
     .from("vote_ballots")
     .delete()

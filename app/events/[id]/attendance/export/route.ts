@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAppUser } from "@/lib/auth";
+import { requireAppUser, hasRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatEventDate, formatEventTime, formatEventTypes } from "@/lib/format";
 import type { EventType } from "@/lib/types";
@@ -26,11 +26,15 @@ interface AttendanceRow {
 
 // Wraps a field in quotes and escapes any quotes inside it, only when the
 // field actually needs it, so plain values stay readable in the raw file.
+// A leading =, +, -, @, tab, or CR is neutralised with a leading apostrophe
+// first, since this file is opened in Excel/Sheets and any of those chars
+// at the start of a cell is interpreted as a formula.
 function csvField(value: string): string {
-  if (/[",\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  if (/[",\n]/.test(safe)) {
+    return `"${safe.replace(/"/g, '""')}"`;
   }
-  return value;
+  return safe;
 }
 
 function csvRow(fields: string[]): string {
@@ -45,7 +49,10 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  await requireAppUser();
+  const user = await requireAppUser();
+  if (!hasRole(user, "exec") && !hasRole(user, "payment_manager")) {
+    return NextResponse.json({ error: "Not allowed" }, { status: 403 });
+  }
   const { id } = await params;
 
   const supabase = await createClient();

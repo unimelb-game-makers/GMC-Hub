@@ -133,7 +133,16 @@ export async function deleteEvent(eventId: string) {
   }
 
   const { error } = await admin.from("events").delete().eq("id", eventId);
-  if (error) throw new Error(error.message);
+  if (error) {
+    // Foreign key violation: a request or attendance entry was inserted
+    // between the counts above and this delete.
+    if (error.code === "23503") {
+      throw new Error(
+        "Can't delete, a request or attendance entry was just added to this event. Close it instead."
+      );
+    }
+    throw new Error(error.message);
+  }
   revalidatePath("/events");
   redirect("/events");
 }

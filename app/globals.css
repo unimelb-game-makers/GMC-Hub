@@ -14,6 +14,7 @@
   --accent: #efae73;
   --accent-hover: #e2965b;
   --accent-ink: #171614;
+  --accent-soft: #3a2f22;
 }
 
 @theme inline {
@@ -27,6 +28,7 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
   --font-sans: var(--font-body);
   --font-display: var(--font-display);
   --font-mono: var(--font-mono);

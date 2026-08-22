@@ -1,13 +1,13 @@
-# GMC Reimbursement Tracker
+# GMC Hub
 
-Internal web app for the University of Melbourne Game Maker Club (GMC) committee to manage reimbursement requests from submission through approval to payment. Committee-only, no public access.
+Internal web app for the University of Melbourne Game Makers' Club (GMC) committee, covering three modules: **Reimbursements** (spend/claim requests through approval to payment), **Attendance** (per-event check-in and student roster, with UMSU-compliant CSV export), and **Voting Booth** (motions and polls with secret ballots). Committee-only, no public access.
 
 ## How It Works
 
 ### Authentication & Access
 
 - Sign in with **Discord OAuth** (via Supabase Auth).
-- Access is gated by **Discord roles in the club server**: anyone holding a mapped committee role gets in automatically. Roles re-sync on sign-in and refresh automatically (10-minute TTL), so committee turnover is handled entirely in Discord.
+- Access is gated by **Discord roles in the club server**: anyone holding a mapped committee role gets in automatically. Roles re-sync on sign-in and refresh automatically (5-minute TTL), so committee turnover is handled entirely in Discord.
 
 ### Roles
 
@@ -49,6 +49,16 @@ The club's Discord bot posts to the committee channel or DMs the submitter on ev
 - **Claim approved** → ping the Payment Manager role
 - **Reimbursed** → DM the submitter ("You've been reimbursed!")
 - **Rejected** → DM the submitter with the rejection reason
+
+### Attendance
+
+Payment managers and execs create events (date/time, venue, event type) and record who showed up. Any signed-in committee or subcommittee member can search the shared student roster or add a new student on the spot, check them in or out, and edit or delete roster entries, this is intentionally not scoped to who created the event.
+
+Each event's attendance can be exported as a CSV laid out to match UMSU's paper attendance form (club name, date, venue, event type, then a numbered Name/Student Number/Course/Timestamp/Club Member? table), for submission alongside a room booking.
+
+### Voting Booth
+
+Execs create voting booths: a title, description, eligible roles, an opening and closing time, single or multiple choice, and whether individual voters are revealed once the vote closes (ballot secrecy is the default). Eligible members cast or amend their ballot any time while the vote is open, changing it just means voting again. Options and the reveal-voters setting lock in once the first ballot is cast, so no one can be told after the fact they voted under different terms. Results, and per-voter breakdowns if enabled, only ever appear once the vote has closed.
 
 ## Tech Stack
 

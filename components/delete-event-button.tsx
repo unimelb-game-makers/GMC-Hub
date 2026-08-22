@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import { SubmitButton } from "@/components/submit-button";
-
-const dangerButtonClass =
-  "rounded-md border border-[#5a3232] px-3 py-1.5 text-xs font-medium text-[#f0a3a3] transition-colors hover:bg-[#2a1818]";
+import { dangerButtonClass } from "@/lib/ui";
 
 export function DeleteEventButton({
   eventTitle,
@@ -20,18 +18,23 @@ export function DeleteEventButton({
 
   if (blocked) {
     return (
-      <span
-        className="relative inline-block"
-        onMouseEnter={() => setShowTip(true)}
-        onMouseLeave={() => setShowTip(false)}
-        onClick={() => setShowTip((v) => !v)}
-      >
-        <span className="cursor-not-allowed rounded-md border border-line px-3 py-1.5 text-xs font-medium text-ink-soft/50">
+      <span className="relative inline-block">
+        <button
+          type="button"
+          className="cursor-not-allowed rounded-md border border-line px-3 py-1.5 text-xs font-medium text-ink-soft/50"
+          onMouseEnter={() => setShowTip(true)}
+          onMouseLeave={() => setShowTip(false)}
+          onFocus={() => setShowTip(true)}
+          onBlur={() => setShowTip(false)}
+          onClick={() => setShowTip((v) => !v)}
+          aria-describedby="delete-event-blocked-tip"
+        >
           Delete
-        </span>
+        </button>
         {showTip && (
           <span
             role="tooltip"
+            id="delete-event-blocked-tip"
             className="absolute bottom-full left-1/2 z-10 mb-2 w-48 max-w-[85vw] -translate-x-1/2 rounded-md border border-line bg-nav px-3 py-2 text-xs font-normal text-nav-ink shadow-lg"
           >
             This event has requests or attendance recorded. Close it instead.
