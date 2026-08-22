@@ -21,6 +21,7 @@ export function formatBankDetails(bank: BankDetails): string {
 export const CATEGORY_LABELS: Record<Category, string> = {
   food: "F&B",
   equipment: "Equipment",
+  technical: "Technical",
   venue: "Venue",
   umsu_assets: "UMSU Assets",
   printing: "Printing (UMSU Purchases Other)",

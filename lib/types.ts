@@ -16,6 +16,7 @@ export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 export const CATEGORIES = [
   "food",
   "equipment",
+  "technical",
   "venue",
   "umsu_assets",
   "printing",
