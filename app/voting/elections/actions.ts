@@ -22,6 +22,10 @@ function generateToken(): string {
   return randomBytes(32).toString("base64url");
 }
 
+// A generous ceiling on one invite batch, mainly to catch a pasted-in-error
+// mailing list rather than to constrain a real club-sized election.
+const MAX_INVITES_PER_BATCH = 500;
+
 export interface QuestionInput {
   title: string;
   description: string;
@@ -87,42 +91,23 @@ export async function createElection(formData: FormData) {
   const { opensAt, closesAt } = parseSchedule(formData);
   const questions = parseStructure(formData);
 
+  // One atomic call (create_election(), migration 0018) rather than a
+  // separate insert per question/option: a failure partway through a
+  // multi-step client-side insert loop would otherwise leave a half-built
+  // election in the database with no way to detect or clean it up.
   const admin = createAdminClient();
-  const { data: election, error } = await admin
-    .from("elections")
-    .insert({
-      title,
-      description,
-      created_by: user.id,
-      opens_at: opensAt ? opensAt.toISOString() : null,
-      closes_at: closesAt.toISOString(),
-    })
-    .select("id")
-    .single();
+  const { data: electionId, error } = await admin.rpc("create_election", {
+    p_title: title,
+    p_description: description,
+    p_created_by: user.id,
+    p_opens_at: opensAt ? opensAt.toISOString() : null,
+    p_closes_at: closesAt.toISOString(),
+    p_questions: questions,
+  });
   if (error) throw new Error(error.message);
 
-  for (let i = 0; i < questions.length; i++) {
-    const q = questions[i];
-    const { data: question, error: qError } = await admin
-      .from("election_questions")
-      .insert({
-        election_id: election.id,
-        title: q.title,
-        description: q.description,
-        display_order: i,
-      })
-      .select("id")
-      .single();
-    if (qError) throw new Error(qError.message);
-
-    const { error: optError } = await admin.from("election_options").insert(
-      q.options.map((label, j) => ({ question_id: question.id, label, display_order: j }))
-    );
-    if (optError) throw new Error(optError.message);
-  }
-
   revalidatePath("/voting");
-  redirect(`/voting/elections/${election.id}`);
+  redirect(`/voting/elections/${electionId}`);
 }
 
 // Emails not yet invited get a fresh token and an invite email. Emails
@@ -148,6 +133,9 @@ export async function inviteVoters(electionId: string, formData: FormData) {
     throw new Error(`Invalid email address: ${invalid[0]}`);
   }
   if (emails.length === 0) throw new Error("Add at least one email address");
+  if (emails.length > MAX_INVITES_PER_BATCH) {
+    throw new Error(`Up to ${MAX_INVITES_PER_BATCH} emails per invite batch`);
+  }
 
   const admin = createAdminClient();
   const { data: election } = await admin

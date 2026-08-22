@@ -181,3 +181,67 @@ begin
   update election_voters set voted_at = now() where id = v_voter_id;
 end;
 $$;
+
+-- Creates an election together with every question and option in one
+-- transaction, mirroring cast_election_ballot()'s atomicity: without this,
+-- createElection's separate insert-per-question, insert-per-option calls
+-- could fail partway through (a dropped connection, a transient DB error)
+-- and leave a half-built election with some questions missing options, or
+-- some questions missing entirely, and no way to detect or clean it up.
+create or replace function create_election(
+  p_title text,
+  p_description text,
+  p_created_by uuid,
+  p_opens_at timestamptz,
+  p_closes_at timestamptz,
+  p_questions jsonb -- [{ "title": text, "description": text, "options": [text, ...] }, ...]
+) returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_election_id uuid;
+  v_question jsonb;
+  v_question_id uuid;
+  v_option text;
+  v_q_index integer := 0;
+  v_o_index integer;
+begin
+  if jsonb_array_length(p_questions) = 0 then
+    raise exception 'Add at least one question';
+  end if;
+
+  insert into elections (title, description, created_by, opens_at, closes_at)
+  values (p_title, p_description, p_created_by, p_opens_at, p_closes_at)
+  returning id into v_election_id;
+
+  for v_question in select * from jsonb_array_elements(p_questions)
+  loop
+    if jsonb_array_length(v_question -> 'options') < 2 then
+      raise exception 'Every question needs at least 2 options';
+    end if;
+
+    insert into election_questions (election_id, title, description, display_order)
+    values (
+      v_election_id,
+      v_question ->> 'title',
+      coalesce(v_question ->> 'description', ''),
+      v_q_index
+    )
+    returning id into v_question_id;
+
+    v_o_index := 0;
+    for v_option in select * from jsonb_array_elements_text(v_question -> 'options')
+    loop
+      insert into election_options (question_id, label, display_order)
+      values (v_question_id, v_option, v_o_index);
+      v_o_index := v_o_index + 1;
+    end loop;
+
+    v_q_index := v_q_index + 1;
+  end loop;
+
+  return v_election_id;
+end;
+$$;
