@@ -12,6 +12,7 @@ export function PaymentMethodFields({
   defaultPayid = "",
   defaultBsb = "",
   defaultAccountNumber = "",
+  defaultAccountName = "",
   showSaveCheckbox = false,
   defaultSave = false,
   fieldBg = "bg-surface",
@@ -20,6 +21,7 @@ export function PaymentMethodFields({
   defaultPayid?: string;
   defaultBsb?: string;
   defaultAccountNumber?: string;
+  defaultAccountName?: string;
   showSaveCheckbox?: boolean;
   defaultSave?: boolean;
   fieldBg?: string;
@@ -78,31 +80,43 @@ export function PaymentMethodFields({
           />
         </label>
       ) : (
-        <div className="mt-3 flex gap-3">
+        <div className="mt-3 flex flex-col gap-3">
           <label className="flex flex-col gap-1 text-sm font-medium">
-            BSB
+            Account name
             <input
-              name="bsb"
+              name="account_name"
               required
-              inputMode="numeric"
-              pattern="\d{3}-?\d{3}"
-              placeholder="e.g. 063-000"
-              defaultValue={defaultBsb}
-              className={`${inputClass} font-mono`}
+              placeholder="Name on the account"
+              defaultValue={defaultAccountName}
+              className={inputClass}
             />
           </label>
-          <label className="flex flex-1 flex-col gap-1 text-sm font-medium">
-            Account number
-            <input
-              name="account_number"
-              required
-              inputMode="numeric"
-              pattern="\d{4,10}"
-              placeholder="4 to 10 digits"
-              defaultValue={defaultAccountNumber}
-              className={`${inputClass} font-mono`}
-            />
-          </label>
+          <div className="flex gap-3">
+            <label className="flex flex-col gap-1 text-sm font-medium">
+              BSB
+              <input
+                name="bsb"
+                required
+                inputMode="numeric"
+                pattern="\d{3}-?\d{3}"
+                placeholder="e.g. 063-000"
+                defaultValue={defaultBsb}
+                className={`${inputClass} font-mono`}
+              />
+            </label>
+            <label className="flex flex-1 flex-col gap-1 text-sm font-medium">
+              Account number
+              <input
+                name="account_number"
+                required
+                inputMode="numeric"
+                pattern="\d{4,10}"
+                placeholder="4 to 10 digits"
+                defaultValue={defaultAccountNumber}
+                className={`${inputClass} font-mono`}
+              />
+            </label>
+          </div>
         </div>
       )}
 

@@ -14,7 +14,7 @@ export function formatBSB(bsb: string): string {
 export function formatBankDetails(bank: BankDetails): string {
   return bank.paymentMethod === "payid"
     ? `PayID ${bank.payid}`
-    : `BSB ${formatBSB(bank.bsb!)} · Account ${bank.accountNumber}`;
+    : `${bank.accountName} · BSB ${formatBSB(bank.bsb!)} · Account ${bank.accountNumber}`;
 }
 
 // "food" is stored in the DB (enum value unchanged); F&B is just the label.
