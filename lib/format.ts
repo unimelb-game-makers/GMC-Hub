@@ -1,4 +1,11 @@
-import { ROLES, type BankDetails, type Category, type RequestStatus, type Role } from "@/lib/types";
+import {
+  ROLES,
+  type BankDetails,
+  type Category,
+  type EventType,
+  type RequestStatus,
+  type Role,
+} from "@/lib/types";
 
 export function formatAUD(amount: number): string {
   return new Intl.NumberFormat("en-AU", {
@@ -29,6 +36,71 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   other: "Other",
 };
 
+export const EVENT_TYPE_LABELS: Record<EventType, string> = {
+  function: "Function",
+  camp: "Camp",
+  excursion: "Excursion",
+  other: "Other",
+};
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+// starts_at is stored as a plain "timestamp without time zone" and always
+// read back verbatim as wall-clock text ("2026-08-29T17:30:00"), parsed
+// here by hand rather than through Date — Date would silently reinterpret
+// it in whatever timezone the running process is in (UTC on Vercel),
+// which is wrong for a value that's just typed-in, displayed-back text.
+function parseEventDateTime(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!match) return { year: 1970, month: 1, day: 1, hour: 0, minute: 0 };
+  const [, y, mo, d, h, mi] = match;
+  return { year: +y, month: +mo, day: +d, hour: +h, minute: +mi };
+}
+
+// "29th August 2025", matching the ordinal-day style UMSU's own paper
+// attendance form uses.
+export function formatEventDate(value: string): string {
+  const { year, month, day } = parseEventDateTime(value);
+  const suffix =
+    day % 10 === 1 && day !== 11
+      ? "st"
+      : day % 10 === 2 && day !== 12
+        ? "nd"
+        : day % 10 === 3 && day !== 13
+          ? "rd"
+          : "th";
+  return `${day}${suffix} ${MONTH_NAMES[month - 1]} ${year}`;
+}
+
+// 24-hour "17:30", matching the paper form.
+export function formatEventTime(value: string): string {
+  const { hour, minute } = parseEventDateTime(value);
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+// Trims a stored "2026-08-29T17:30:00" value down to the
+// "2026-08-29T17:30" shape a <input type="datetime-local"> expects.
+export function toDatetimeLocalValue(value: string | null): string {
+  return value ? value.slice(0, 16) : "";
+}
+
+export function formatEventTypes(
+  types: EventType[],
+  otherDetails: string | null
+): string {
+  if (types.length === 0) return "";
+  return types
+    .map((t) =>
+      t === "other" && otherDetails
+        ? `${EVENT_TYPE_LABELS[t]} (${otherDetails})`
+        : EVENT_TYPE_LABELS[t]
+    )
+    .join("; ");
+}
+
 export const ROLE_LABELS: Record<Role, string> = {
   member: "Member",
   exec: "Executive",
@@ -42,6 +114,11 @@ export function highestRoleLabel(roles: Role[]): string | null {
     if (roles.includes(ROLES[i])) return ROLE_LABELS[ROLES[i]];
   }
   return null;
+}
+
+// Empty allowedRoles means the vote's creator left it open to anyone.
+export function formatEligibleRoles(roles: Role[]): string {
+  return roles.length === 0 ? "Anyone signed in" : roles.map((r) => ROLE_LABELS[r]).join(", ");
 }
 
 export const STATUS_LABELS: Record<RequestStatus, string> = {

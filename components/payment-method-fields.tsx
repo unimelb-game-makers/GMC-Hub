@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Checkbox } from "@/components/checkbox";
 import type { PaymentMethod } from "@/lib/types";
 
 // The club can't pay out via PayID yet — only BSB + account number for now.
@@ -91,8 +92,8 @@ export function PaymentMethodFields({
               className={inputClass}
             />
           </label>
-          <div className="flex gap-3">
-            <label className="flex flex-col gap-1 text-sm font-medium">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <label className="flex flex-col gap-1 text-sm font-medium sm:w-32">
               BSB
               <input
                 name="bsb"
@@ -101,7 +102,7 @@ export function PaymentMethodFields({
                 pattern="\d{3}-?\d{3}"
                 placeholder="e.g. 063-000"
                 defaultValue={defaultBsb}
-                className={`${inputClass} font-mono`}
+                className={`${inputClass} w-full font-mono`}
               />
             </label>
             <label className="flex flex-1 flex-col gap-1 text-sm font-medium">
@@ -110,10 +111,11 @@ export function PaymentMethodFields({
                 name="account_number"
                 required
                 inputMode="numeric"
-                pattern="\d{4,10}"
-                placeholder="4 to 10 digits"
+                pattern="\d{6,9}"
+                maxLength={9}
+                placeholder="6 to 9 digits"
                 defaultValue={defaultAccountNumber}
-                className={`${inputClass} font-mono`}
+                className={`${inputClass} w-full font-mono`}
               />
             </label>
           </div>
@@ -122,12 +124,7 @@ export function PaymentMethodFields({
 
       {showSaveCheckbox && (
         <label className="mt-3 flex items-center gap-2 text-sm text-ink-soft">
-          <input
-            type="checkbox"
-            name="save_bank_details"
-            defaultChecked={defaultSave}
-            className="accent-accent"
-          />
+          <Checkbox name="save_bank_details" defaultChecked={defaultSave} />
           Save these details for next time
         </label>
       )}

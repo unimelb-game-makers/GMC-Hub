@@ -1,166 +1,209 @@
 import Link from "next/link";
 import { requireAppUser, hasRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatAUD } from "@/lib/format";
 import type { RequestStatus } from "@/lib/types";
 import { Nav } from "@/components/nav";
-import { StatusBadge } from "@/components/status-badge";
+import { HomeEventsTabs, type HomeEventSummary } from "@/components/home-events-tabs";
+import { voteStatus, canVote } from "@/lib/voting";
+import type { Role } from "@/lib/types";
 
-interface RequestListRow {
-  id: string;
+interface RequestRow {
+  event_id: string;
   submitter_id: string;
-  title: string;
-  amount_estimated: number;
-  amount_claimed: number | null;
   status: RequestStatus;
+}
+
+interface AttendanceRow {
+  event_id: string;
+}
+
+interface EventRow {
+  id: string;
+  title: string;
+  is_open: boolean;
   created_at: string;
-  event: { title: string } | null;
-  submitter: { display_name: string } | null;
 }
 
-function RequestList({ requests }: { requests: RequestListRow[] }) {
-  return (
-    <ul className="mt-2 flex flex-col gap-2">
-      {requests.map((r) => (
-        <li key={r.id}>
-          <Link
-            href={`/requests/${r.id}`}
-            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line bg-surface p-3 text-sm transition-colors hover:border-accent/40"
-          >
-            <span className="font-medium">{r.title}</span>
-            <StatusBadge status={r.status} />
-            <span className="ml-auto font-mono text-ink-soft">
-              {formatAUD(r.amount_claimed ?? r.amount_estimated)}
-            </span>
-            <span className="w-full text-xs text-ink-soft">
-              {r.submitter?.display_name} · {r.event?.title}
-            </span>
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
+interface VoteRow {
+  id: string;
+  allowed_roles: Role[];
+  opens_at: string | null;
+  closes_at: string;
+  closed_early_at: string | null;
 }
 
-export default async function Home() {
+interface OwnBallotRow {
+  vote_id: string;
+}
+
+export default async function HubHome() {
   const user = await requireAppUser();
   const supabase = await createClient();
 
-  const { data } = await supabase
-    .from("requests")
-    .select(
-      "id, submitter_id, title, amount_estimated, amount_claimed, status, created_at, event:events (title), submitter:app_users!requests_submitter_id_fkey (display_name)"
-    )
-    .order("created_at", { ascending: false });
-  const requests = (data ?? []) as unknown as RequestListRow[];
+  const [{ data }, { data: attendanceData }, { data: eventData }, { data: voteData }, { data: ownBallotData }] =
+    await Promise.all([
+      supabase.from("requests").select("event_id, submitter_id, status"),
+      supabase.from("attendance_entries").select("event_id"),
+      supabase
+        .from("events")
+        .select("id, title, is_open, created_at")
+        .order("created_at", { ascending: false }),
+      supabase.from("votes").select("id, allowed_roles, opens_at, closes_at, closed_early_at"),
+      supabase.from("vote_ballots").select("vote_id").eq("voter_id", user.id),
+    ]);
+  const requests = (data ?? []) as unknown as RequestRow[];
+  const attendance = (attendanceData ?? []) as AttendanceRow[];
+  const events = (eventData ?? []) as EventRow[];
+  const votes = (voteData ?? []) as VoteRow[];
+  const votedIds = new Set(((ownBallotData ?? []) as OwnBallotRow[]).map((b) => b.vote_id));
 
-  const needsAction: RequestListRow[] = [];
+  const votesToCast = votes.filter(
+    (v) =>
+      voteStatus({ opensAt: v.opens_at, closesAt: v.closes_at, closedEarlyAt: v.closed_early_at }) ===
+        "open" &&
+      canVote(v.allowed_roles, user.roles) &&
+      !votedIds.has(v.id)
+  ).length;
+
+  let needsAction = 0;
   if (hasRole(user, "exec")) {
-    needsAction.push(
-      ...requests.filter((r) => r.status === "pending_approval")
-    );
+    needsAction += requests.filter((r) => r.status === "pending_approval").length;
   }
   if (hasRole(user, "payment_manager")) {
-    needsAction.push(
-      ...requests.filter((r) =>
-        ["claim_submitted", "claim_approved"].includes(r.status)
-      )
-    );
+    needsAction += requests.filter((r) =>
+      ["claim_submitted", "claim_approved"].includes(r.status)
+    ).length;
   }
-  needsAction.push(
-    ...requests.filter(
-      (r) =>
-        r.submitter_id === user.id &&
-        ["approved", "rejected"].includes(r.status) &&
-        !needsAction.includes(r)
-    )
-  );
+  needsAction += requests.filter(
+    (r) =>
+      r.submitter_id === user.id && ["approved", "rejected"].includes(r.status)
+  ).length;
 
-  // Each section only shows what hasn't already appeared above it — with
-  // small clubs, the same person is often submitter + exec + payment
-  // manager on the same handful of requests, so without this the dashboard
-  // just repeats itself three times over. Reimbursed requests are fully
-  // closed (nothing left for anyone to do), so they're split into their own
-  // collapsed section instead of cluttering the active lists forever — the
-  // `requests` query is already RLS-scoped (members only see their own,
-  // exec/payment_manager see everyone's), so "completed" naturally covers
-  // the right set for either case.
-  const needsActionIds = new Set(needsAction.map((r) => r.id));
-  const completed = requests.filter(
-    (r) => r.status === "reimbursed" && !needsActionIds.has(r.id)
-  );
-  const active = requests.filter(
-    (r) => r.status !== "reimbursed" && !needsActionIds.has(r.id)
-  );
-  const mine = active.filter((r) => r.submitter_id === user.id);
-  const shownIds = new Set([...needsActionIds, ...mine.map((r) => r.id)]);
-  const others = active.filter((r) => !shownIds.has(r.id));
+  const requestCounts = new Map<string, number>();
+  for (const r of requests) {
+    requestCounts.set(r.event_id, (requestCounts.get(r.event_id) ?? 0) + 1);
+  }
+  const attendanceCounts = new Map<string, number>();
+  for (const a of attendance) {
+    attendanceCounts.set(a.event_id, (attendanceCounts.get(a.event_id) ?? 0) + 1);
+  }
+
+  const canManageEvents = hasRole(user, "exec") || hasRole(user, "payment_manager");
+  const eventSummaries: HomeEventSummary[] = events.map((event) => ({
+    id: event.id,
+    title: event.title,
+    isOpen: event.is_open,
+    createdAt: event.created_at,
+    requestCount: requestCounts.get(event.id) ?? 0,
+    attendanceCount: attendanceCounts.get(event.id) ?? 0,
+  }));
 
   return (
     <>
       <Nav user={user} />
       <main className="mx-auto w-full max-w-5xl flex-1 p-4 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="font-display text-xl font-semibold tracking-tight">
-            Dashboard
-          </h1>
+        <h1 className="font-display text-xl font-semibold tracking-tight">
+          GMC Hub
+        </h1>
+        <p className="mt-1 text-sm text-ink-soft">
+          All GMC committee essentials.
+        </p>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <Link
-            href="/requests/new"
-            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover"
+            href="/reimbursements"
+            className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-4 transition-colors hover:border-accent/40"
           >
-            New spend request
+            <span className="font-display text-sm font-semibold tracking-tight">
+              Reimbursements
+            </span>
+            <p className="text-sm text-ink-soft">
+              Spend requests, claims, and payouts.
+            </p>
+            <span className="mt-auto text-2xl font-semibold text-accent">
+              {needsAction}
+            </span>
+            <span className="text-xs text-ink-soft">
+              {needsAction === 1 ? "item needs your action" : "items need your action"}
+            </span>
+          </Link>
+
+          <Link
+            href="/attendance"
+            className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-4 transition-colors hover:border-accent/40"
+          >
+            <span className="font-display text-sm font-semibold tracking-tight">
+              Attendance
+            </span>
+            <p className="text-sm text-ink-soft">
+              Check members in at events and export the list for UMSU.
+            </p>
+            <span className="mt-auto text-2xl font-semibold text-accent">
+              {attendance.length}
+            </span>
+            <span className="text-xs text-ink-soft">
+              {attendance.length === 1 ? "person checked in" : "people checked in"}
+            </span>
+          </Link>
+
+          <Link
+            href="/voting"
+            className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-4 transition-colors hover:border-accent/40"
+          >
+            <span className="font-display text-sm font-semibold tracking-tight">
+              Voting Booth
+            </span>
+            <p className="text-sm text-ink-soft">
+              Timed motions with role-gated eligibility.
+            </p>
+            <span className="mt-auto text-2xl font-semibold text-accent">
+              {votesToCast}
+            </span>
+            <span className="text-xs text-ink-soft">
+              {votesToCast === 1 ? "vote waiting on you" : "votes waiting on you"}
+            </span>
           </Link>
         </div>
 
-        {requests.length > 0 && (
-          <details className="mt-6" open>
-            <summary className="cursor-pointer text-sm font-medium text-ink-soft">
-              Needs your action{needsAction.length > 0 && ` (${needsAction.length})`}
-            </summary>
-            {needsAction.length > 0 ? (
-              <RequestList requests={needsAction} />
-            ) : (
-              <p className="mt-2 text-sm text-ink-soft/70">
-                Nothing needs your action right now.
-              </p>
-            )}
-          </details>
-        )}
+        <section className="mt-8">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-base font-semibold tracking-tight">
+              Events
+            </h2>
+            <div className="flex items-center gap-3">
+              {canManageEvents && (
+                <Link
+                  href="/events"
+                  className="text-xs font-medium text-accent underline-offset-2 hover:underline"
+                >
+                  New event
+                </Link>
+              )}
+              <Link
+                href="/events"
+                className="text-xs text-ink-soft underline-offset-2 hover:underline"
+              >
+                View all
+              </Link>
+            </div>
+          </div>
 
-        {mine.length > 0 && (
-          <details className="mt-6" open>
-            <summary className="cursor-pointer text-sm font-medium text-ink-soft">
-              Your requests ({mine.length})
-            </summary>
-            <RequestList requests={mine} />
-          </details>
-        )}
-
-        {(hasRole(user, "exec") || hasRole(user, "payment_manager")) &&
-          others.length > 0 && (
-            <details className="mt-6">
-              <summary className="cursor-pointer text-sm font-medium text-ink-soft">
-                Other requests ({others.length})
-              </summary>
-              <RequestList requests={others} />
-            </details>
+          {events.length === 0 ? (
+            <p className="mt-3 rounded-lg border border-line bg-surface p-4 text-sm text-ink-soft/70">
+              No events yet.{" "}
+              {canManageEvents && (
+                <Link
+                  href="/events"
+                  className="text-accent underline-offset-2 hover:underline"
+                >
+                  Create one
+                </Link>
+              )}
+            </p>
+          ) : (
+            <HomeEventsTabs events={eventSummaries} />
           )}
-
-        {completed.length > 0 && (
-          <details className="mt-6">
-            <summary className="cursor-pointer text-sm font-medium text-ink-soft">
-              Completed ({completed.length})
-            </summary>
-            <RequestList requests={completed} />
-          </details>
-        )}
-
-        {needsAction.length === 0 &&
-          mine.length === 0 &&
-          others.length === 0 &&
-          completed.length === 0 && (
-            <p className="mt-6 text-sm text-ink-soft/70">No requests yet.</p>
-          )}
+        </section>
       </main>
     </>
   );

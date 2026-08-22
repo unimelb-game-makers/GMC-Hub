@@ -20,9 +20,9 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GMC Reimbursement Tracker",
+  title: "GMC Hub",
   description:
-    "Internal reimbursement tracker for the University of Melbourne Game Maker Club committee",
+    "Internal hub for the University of Melbourne Game Maker Club committee. Reimbursements, attendance, and voting in one place.",
 };
 
 export default function RootLayout({

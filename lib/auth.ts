@@ -23,6 +23,12 @@ const APP_USER_COLUMNS =
 // GUILD_MEMBER_UPDATE events, which isn't worth the infra for this club.
 const ROLE_SYNC_TTL_MS = 5 * 60 * 1000;
 
+// Local-dev-only sign-in bypass (see app/auth/dev-bypass/route.ts), so
+// testing doesn't need real Discord bot/guild credentials. Never set in
+// any deployed environment.
+export const DEV_BYPASS_AUTH = process.env.DEV_BYPASS_AUTH === "true";
+export const DEV_BYPASS_DISCORD_ID = "dev-bypass";
+
 // Fetch current guild roles for a Discord user and upsert their app row.
 // Not in the guild (or bot failure treated as unknown) -> roles cleared.
 // Users who end up with no roles have their saved bank details deleted:
@@ -68,6 +74,13 @@ export async function getAppUser(): Promise<AppUser | null> {
     .select(APP_USER_COLUMNS)
     .eq("auth_user_id", user.id)
     .maybeSingle();
+
+  // Dev-only bypass user (see /auth/dev-bypass): has no real Discord
+  // account, so it's excluded from the sync below, which would otherwise
+  // find no guild member and wipe its roles.
+  if (DEV_BYPASS_AUTH && data?.discord_id === DEV_BYPASS_DISCORD_ID) {
+    return data;
+  }
 
   const stale =
     !data ||

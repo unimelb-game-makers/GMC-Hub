@@ -76,6 +76,7 @@ async function transition(
   });
 
   revalidatePath("/");
+  revalidatePath("/reimbursements");
   revalidatePath(`/requests/${request.id}`);
 }
 
@@ -89,6 +90,14 @@ function parseAmount(value: FormDataEntryValue | null): number {
 
 const MAX_RECEIPT_FILES = 3;
 const MAX_RECEIPT_SIZE_BYTES = 8 * 1024 * 1024;
+const ALLOWED_RECEIPT_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
 
 // Real filenames (camera/screenshot defaults especially) routinely contain
 // spaces and other characters Supabase Storage's object keys reject outright
@@ -121,6 +130,9 @@ async function uploadReceipts(
     if (file.size > MAX_RECEIPT_SIZE_BYTES) {
       throw new Error(`"${file.name}" is too large (max 8 MB per file)`);
     }
+    if (!ALLOWED_RECEIPT_TYPES.has(file.type)) {
+      throw new Error(`"${file.name}" must be a PDF or image`);
+    }
   }
 
   const admin = createAdminClient();
@@ -130,7 +142,7 @@ async function uploadReceipts(
     const { error } = await admin.storage
       .from("receipts")
       .upload(path, Buffer.from(await file.arrayBuffer()), {
-        contentType: file.type || "application/octet-stream",
+        contentType: file.type,
       });
     if (error) throw new Error(error.message);
     paths.push(path);
@@ -160,8 +172,8 @@ function parseBankDetails(formData: FormData) {
     const account = String(formData.get("account_number") ?? "").replace(/\D/g, "");
     if (!accountName) throw new Error("Account name is required");
     if (!/^\d{6}$/.test(bsb)) throw new Error("BSB must be 6 digits");
-    if (!/^\d{4,10}$/.test(account)) {
-      throw new Error("Account number must be 4 to 10 digits");
+    if (!/^\d{6,9}$/.test(account)) {
+      throw new Error("Account number must be 6 to 9 digits");
     }
     return {
       payment_method: "bank_transfer" as const,
@@ -235,6 +247,7 @@ export async function createRequest(formData: FormData) {
   );
 
   revalidatePath("/");
+  revalidatePath("/reimbursements");
   redirect(`/requests/${request.id}`);
 }
 

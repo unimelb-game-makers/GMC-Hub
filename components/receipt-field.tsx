@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Checkbox } from "@/components/checkbox";
 
 const MAX_FILES = 3;
 const MAX_SIZE_BYTES = 8 * 1024 * 1024;
@@ -129,15 +130,14 @@ export function ReceiptField({
         {error && <p className="text-xs text-[#f0a3a3]">{error}</p>}
       </span>
       <label className="flex items-start gap-2 text-xs text-ink-soft">
-        <input
-          type="checkbox"
+        <Checkbox
           name="receipt_in_drive"
           checked={inDrive}
           onChange={(e) => {
             setInDrive(e.target.checked);
             setError(null);
           }}
-          className="mt-0.5 accent-accent"
+          className="mt-0.5"
         />
         I&apos;ve uploaded this to the correct event&apos;s folder in the
         Drive instead
