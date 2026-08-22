@@ -48,7 +48,7 @@ export function VotingModeTabs({
               mode === "elections" ? "bg-accent text-accent-ink" : "text-ink-soft hover:text-ink"
             }`}
           >
-            Elections
+            Elections <span className="text-ink-soft">(alpha)</span>
           </button>
         </div>
         <Link
