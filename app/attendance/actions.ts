@@ -3,31 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAppUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-const STUDENT_NUMBER_PATTERN = /^\d{7}$/;
-
-// Null (not a student) is allowed; when given, it must be exactly 7 digits.
-function parseStudentNumber(raw: FormDataEntryValue | null): string | null {
-  const value = String(raw ?? "").trim();
-  if (!value) return null;
-  if (!STUDENT_NUMBER_PATTERN.test(value)) {
-    throw new Error("Student ID must be exactly 7 digits");
-  }
-  return value;
-}
-
-// Degree codes, e.g. B-SCI, BH-ARTS, MC-IT, DR-PHILSCI: letters only, all
-// caps, at least one dash. Optional field, so empty stays empty.
-const COURSE_PATTERN = /^[A-Z]+-[A-Z]+$/;
-
-function parseCourse(raw: FormDataEntryValue | null): string | null {
-  const value = String(raw ?? "").trim().toUpperCase();
-  if (!value) return null;
-  if (!COURSE_PATTERN.test(value)) {
-    throw new Error("Course must be all caps with a dash, e.g. B-SCI");
-  }
-  return value;
-}
+import { parseStudentNumber, parseStudentNumberRequired, parseCourse } from "@/lib/attendance-validation";
 
 function revalidateAttendance(eventId: string) {
   revalidatePath(`/events/${eventId}`);
@@ -66,7 +42,8 @@ export async function addNewMemberAndCheckIn(
 
   const fullName = String(formData.get("full_name") ?? "").trim();
   if (!fullName) throw new Error("Name is required");
-  const studentNumber = parseStudentNumber(formData.get("student_number"));
+  const notAStudent = !!formData.get("not_a_student");
+  const studentNumber = parseStudentNumberRequired(formData.get("student_number"), notAStudent);
   const course = parseCourse(formData.get("course"));
   const isClubMember = !!formData.get("is_club_member");
 
