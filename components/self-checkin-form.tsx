@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { PendingButton } from "@/components/pending-button";
 import { Checkbox } from "@/components/checkbox";
-import type { ExistingMatch } from "@/app/checkin/[eventId]/actions";
+import type { MatchedMember, CheckMatchResult, CheckInResult } from "@/app/checkin/[eventId]/actions";
 
 const inputClass =
   "rounded-md border border-line bg-bg px-3 py-2 text-sm font-normal placeholder:text-ink-soft/60";
@@ -14,8 +14,8 @@ export function SelfCheckinForm({
   onCheckMatch,
   onSubmit,
 }: {
-  onCheckMatch: (formData: FormData) => Promise<ExistingMatch>;
-  onSubmit: (formData: FormData) => Promise<void>;
+  onCheckMatch: (formData: FormData) => Promise<CheckMatchResult>;
+  onSubmit: (formData: FormData) => Promise<CheckInResult>;
 }) {
   const [step, setStep] = useState<Step>("details");
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +25,7 @@ export function SelfCheckinForm({
   const [notAStudent, setNotAStudent] = useState(false);
   const [course, setCourse] = useState("");
   const [isClubMember, setIsClubMember] = useState(false);
-  const [match, setMatch] = useState<ExistingMatch | null>(null);
+  const [match, setMatch] = useState<MatchedMember | null>(null);
 
   const idValid = notAStudent ? studentNumber === "" : studentNumber.length === 7;
 
@@ -44,10 +44,14 @@ export function SelfCheckinForm({
     setError(null);
     setPending(true);
     try {
-      await onSubmit(buildFormData(confirmedMemberId));
-      setStep("done");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't check you in");
+      const result = await onSubmit(buildFormData(confirmedMemberId));
+      if (result.ok) {
+        setStep("done");
+      } else {
+        setError(result.error);
+      }
+    } catch {
+      setError("Couldn't check you in, please try again.");
     } finally {
       setPending(false);
     }
@@ -62,12 +66,26 @@ export function SelfCheckinForm({
     );
   }
 
-  if (step === "confirm" && match?.matched) {
+  if (step === "confirm" && match) {
     return (
       <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
         <p className="text-sm">
-          Welcome back, <span className="font-semibold">{match.matchedName}</span>. Is this you?
+          Welcome back, <span className="font-semibold">{match.fullName}</span>. Is this you?
         </p>
+        <dl className="flex flex-col gap-1 rounded-md border border-line bg-bg px-3 py-2 text-sm">
+          <div className="flex justify-between gap-2">
+            <dt className="text-ink-soft">Student ID</dt>
+            <dd className="font-mono">{match.studentNumber ?? "N/A"}</dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt className="text-ink-soft">Course</dt>
+            <dd className="font-mono">{match.course ?? "—"}</dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt className="text-ink-soft">Club member</dt>
+            <dd>{match.isClubMember ? "Yes" : "No"}</dd>
+          </div>
+        </dl>
         {error && <p className="text-sm text-[#f0a3a3]">{error}</p>}
         <div className="flex gap-2">
           <PendingButton
@@ -108,14 +126,16 @@ export function SelfCheckinForm({
         setPending(true);
         try {
           const result = await onCheckMatch(buildFormData());
-          if (result.matched) {
-            setMatch(result);
+          if (!result.ok) {
+            setError(result.error);
+          } else if (result.matched) {
+            setMatch(result.member);
             setStep("confirm");
           } else {
             await finishCheckIn();
           }
-        } catch (err) {
-          setError(err instanceof Error ? err.message : "Couldn't check you in");
+        } catch {
+          setError("Couldn't check you in, please try again.");
         } finally {
           setPending(false);
         }
