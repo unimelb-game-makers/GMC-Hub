@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import QRCode from "qrcode";
 import { requireAppUser, hasRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Nav } from "@/components/nav";
 import { StatusBadge } from "@/components/status-badge";
 import { EventHeader } from "@/components/event-header";
 import { EventDetailTabs } from "@/components/event-detail-tabs";
+import { AttendanceSharePanel } from "@/components/attendance-share-panel";
 import {
   AttendanceList,
   type AttendanceEntryRow,
@@ -127,7 +129,9 @@ export default async function EventDetailPage({
     course: a.member?.course ?? null,
     isClubMember: a.member?.is_club_member ?? false,
     createdAt: a.created_at,
-    checkedInByName: a.checked_in_by_user?.display_name ?? "unknown",
+    // Null checked_in_by is how a self check-in (the public /checkin link,
+    // no signed-in staff member involved) is represented, not a data gap.
+    checkedInByName: a.checked_in_by_user?.display_name ?? "self check-in",
   }));
   const members: AttendanceMemberOption[] = (
     (memberData ?? []) as MemberRow[]
@@ -140,6 +144,14 @@ export default async function EventDetailPage({
   }));
 
   const canManage = hasRole(user, "exec") || hasRole(user, "payment_manager");
+
+  // No self-check-in link without a public URL to build it from (unset in
+  // local dev, per .env.example, where nothing external can reach it
+  // anyway).
+  const checkinUrl = process.env.APP_URL ? `${process.env.APP_URL}/checkin/${event.id}` : null;
+  const qrSvg = checkinUrl
+    ? await QRCode.toString(checkinUrl, { type: "svg", margin: 1, width: 220 })
+    : null;
   const counts: Partial<Record<RequestStatus, number>> = {};
   let totalEstimated = 0;
   let totalReimbursed = 0;
@@ -254,7 +266,13 @@ export default async function EventDetailPage({
             </>
           }
           attendance={
-            <AttendanceList
+            <>
+              {checkinUrl && qrSvg && (
+                <div className="mt-4 flex justify-end">
+                  <AttendanceSharePanel checkinUrl={checkinUrl} qrSvg={qrSvg} />
+                </div>
+              )}
+              <AttendanceList
               entries={attendanceEntries}
               members={members}
               onCheckInExisting={checkInMember.bind(null, event.id)}
@@ -263,6 +281,7 @@ export default async function EventDetailPage({
               exportHref={`/events/${event.id}/attendance/export`}
               canExport={!!event.starts_at && !!event.venue && event.event_types.length > 0}
             />
+            </>
           }
         />
       </main>

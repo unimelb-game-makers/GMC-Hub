@@ -3,8 +3,9 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // /elections is the public, token-gated ballot page for the Elections
 // feature: voters reach it from an emailed link with no Discord sign-in at
-// all, so it must never redirect to /login.
-const PUBLIC_PATHS = ["/login", "/auth", "/access-denied", "/elections"];
+// all, so it must never redirect to /login. /checkin is the equivalent for
+// self check-in: reached by scanning an event's QR code, also no sign-in.
+const PUBLIC_PATHS = ["/login", "/auth", "/access-denied", "/elections", "/checkin"];
 
 // Refreshes the auth session cookie and redirects signed-out users to /login.
 export async function updateSession(request: NextRequest) {

@@ -9,8 +9,22 @@ export function IrvResults({
 }) {
   const labelOf = (id: string) => options.find((o) => o.id === id)?.label ?? "unknown";
 
+  // Still lists every candidate, at 0, rather than hiding the question's
+  // options entirely: the committee wants to see who was on the ballot
+  // even when nobody voted, not just a bare "no ballots" message.
   if (result.totalBallots === 0) {
-    return <p className="text-sm text-ink-soft">No ballots were cast for this question.</p>;
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="text-sm text-ink-soft">No ballots were cast for this question.</p>
+        <ul className="flex flex-col gap-1">
+          {options.map((o) => (
+            <li key={o.id} className="font-mono text-sm">
+              {o.label}: 0
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
   }
 
   return (

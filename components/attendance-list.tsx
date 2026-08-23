@@ -56,6 +56,7 @@ export function AttendanceList({
 }) {
   const [nameQuery, setNameQuery] = useState("");
   const [idQuery, setIdQuery] = useState("");
+  const [notAStudent, setNotAStudent] = useState(false);
   const [course, setCourse] = useState("");
   const [isClubMember, setIsClubMember] = useState(false);
   const [listQuery, setListQuery] = useState("");
@@ -86,6 +87,7 @@ export function AttendanceList({
   const reset = () => {
     setNameQuery("");
     setIdQuery("");
+    setNotAStudent(false);
     setCourse("");
     setIsClubMember(false);
     setCheckInError(null);
@@ -112,6 +114,7 @@ export function AttendanceList({
       const formData = new FormData();
       formData.set("full_name", nameQuery.trim());
       formData.set("student_number", idQuery.trim());
+      if (notAStudent) formData.set("not_a_student", "on");
       formData.set("course", course.trim());
       if (isClubMember) formData.set("is_club_member", "on");
       await onAddNew(formData);
@@ -124,9 +127,9 @@ export function AttendanceList({
   };
 
   const noMatches = hasQuery && matches.length === 0;
-  // Student ID is optional (not everyone checked in is a student), but if
-  // one's been typed it has to be complete before submitting.
-  const idValid = idQuery.trim() === "" || idQuery.trim().length === 7;
+  // Blank only counts as valid once "Not a student" is explicitly ticked,
+  // so a forgotten ID can't be silently mistaken for "not a student".
+  const idValid = notAStudent ? idQuery.trim() === "" : idQuery.trim().length === 7;
   const canSubmitAdd = noMatches && nameQuery.trim() !== "" && idValid;
 
   const listQueryTrimmed = listQuery.trim().toLowerCase();
@@ -142,7 +145,7 @@ export function AttendanceList({
     <div className="mt-4 flex flex-col gap-4">
       <div className="rounded-lg border border-line bg-surface p-4">
         <p className="text-sm font-medium">Check in</p>
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start">
           <label className="flex flex-col gap-1 text-sm font-medium sm:min-w-[10rem] sm:flex-1">
             Name
             <input
@@ -153,24 +156,37 @@ export function AttendanceList({
               className={`${inputClass} w-full`}
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm font-medium sm:min-w-[10rem] sm:flex-1">
-            Student ID
-            <input
-              value={idQuery}
-              onChange={(e) => setIdQuery(e.target.value.replace(/\D/g, ""))}
-              inputMode="numeric"
-              maxLength={7}
-              placeholder="7 digits (optional)"
-              disabled={pending}
-              className={`${inputClass} w-full font-mono`}
-            />
-          </label>
+          <div className="flex flex-col gap-1 sm:min-w-[10rem] sm:flex-1">
+            <label className="flex flex-col gap-1 text-sm font-medium">
+              Student ID
+              <input
+                value={idQuery}
+                onChange={(e) => setIdQuery(e.target.value.replace(/\D/g, ""))}
+                inputMode="numeric"
+                maxLength={7}
+                placeholder={notAStudent ? "N/A" : "7 digits"}
+                disabled={pending || notAStudent}
+                className={`${inputClass} w-full font-mono disabled:cursor-not-allowed disabled:opacity-50`}
+              />
+            </label>
+            <label className="flex items-center gap-2 text-xs font-medium text-ink-soft">
+              <Checkbox
+                checked={notAStudent}
+                onChange={(e) => {
+                  setNotAStudent(e.target.checked);
+                  if (e.target.checked) setIdQuery("");
+                }}
+                disabled={pending}
+              />
+              Not a student
+            </label>
+          </div>
           {!noMatches && (
             <button
               type="button"
               onClick={() => matches.length === 1 && handleCheckIn(matches[0].id)}
               disabled={pending || matches.length !== 1}
-              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60 sm:mt-6"
             >
               Check in
             </button>
@@ -243,7 +259,8 @@ export function AttendanceList({
             </div>
             {!canSubmitAdd && (
               <p className="text-xs text-ink-soft">
-                Name is required, student ID must be 7 digits if given.
+                Name is required. Fill in the student ID (7 digits), or tick &quot;Not a
+                student&quot;.
               </p>
             )}
             {addError && <p className={errorClass}>{addError}</p>}

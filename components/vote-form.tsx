@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { unstable_rethrow } from "next/navigation";
 import { DatePicker } from "@/components/date-picker";
 import { TimePicker } from "@/components/time-picker";
 import { Checkbox } from "@/components/checkbox";
@@ -64,6 +65,14 @@ export function VoteForm({
         try {
           await onSubmit(new FormData(e.currentTarget));
         } catch (err) {
+          // createVote finishes by calling redirect(), which Next.js
+          // implements as a special thrown error for the framework to
+          // catch further up. Left unhandled here, that same throw lands
+          // in this catch block first and would flash "Couldn't save the
+          // vote" for an instant before the redirect actually completes.
+          // unstable_rethrow lets it continue past untouched; only a real
+          // error reaches the message below.
+          unstable_rethrow(err);
           setError(err instanceof Error ? err.message : "Couldn't save the vote");
         } finally {
           setPending(false);
