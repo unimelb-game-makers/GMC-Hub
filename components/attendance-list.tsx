@@ -332,28 +332,30 @@ export function AttendanceList({
         {shown.map((entry) => (
           <li
             key={entry.id}
-            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line bg-surface p-3 text-sm"
+            className="flex flex-col gap-2 rounded-lg border border-line bg-surface p-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-1"
           >
-            <Link
-              href={`/attendance/students/${entry.memberId}`}
-              className="font-medium underline decoration-ink-soft/40 underline-offset-4 transition-colors hover:text-accent hover:decoration-accent"
-            >
-              {entry.fullName}
-            </Link>
-            <span className="font-mono text-ink-soft">
-              {entry.studentNumber ?? "N/A"}
-            </span>
-            {entry.course && <span className="text-ink-soft">{entry.course}</span>}
-            <MemberBadge isClubMember={entry.isClubMember} />
-            {entry.foundVia && (
-              <span className="rounded-full border border-line px-1.5 py-0.5 text-[10px] text-ink-soft">
-                {entry.foundVia === "other" && entry.foundViaOtherDetails
-                  ? entry.foundViaOtherDetails
-                  : EVENT_DISCOVERY_SOURCE_LABELS[entry.foundVia]}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <Link
+                href={`/attendance/students/${entry.memberId}`}
+                className="font-medium underline decoration-ink-soft/40 underline-offset-4 transition-colors hover:text-accent hover:decoration-accent"
+              >
+                {entry.fullName}
+              </Link>
+              <span className="font-mono text-ink-soft">
+                {entry.studentNumber ?? "N/A"}
               </span>
-            )}
-            <div className="ml-auto flex items-center gap-2">
-              <span className="text-xs text-ink-soft">
+              {entry.course && <span className="text-ink-soft">{entry.course}</span>}
+              <MemberBadge isClubMember={entry.isClubMember} />
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+              {entry.foundVia && (
+                <span className="rounded-full border border-line px-1.5 py-0.5 text-[10px] text-ink-soft">
+                  {entry.foundVia === "other" && entry.foundViaOtherDetails
+                    ? entry.foundViaOtherDetails
+                    : EVENT_DISCOVERY_SOURCE_LABELS[entry.foundVia]}
+                </span>
+              )}
+              <span className="ml-auto text-xs text-ink-soft sm:ml-0">
                 Checked in by {entry.checkedInByName}
               </span>
               <form action={onRemove.bind(null, entry.id)}>
