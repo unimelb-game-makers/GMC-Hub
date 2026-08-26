@@ -108,10 +108,10 @@ export default async function AttendanceStudentPage({
                 href={`/events/${entry.event?.id}?tab=attendance`}
                 className="flex items-center justify-between gap-3 rounded-lg border border-line bg-surface p-3 text-sm transition-colors hover:border-accent/40"
               >
-                <span className="font-medium">
+                <span className="min-w-0 truncate font-medium">
                   {entry.event?.title ?? "unknown event"}
                 </span>
-                <span className="text-ink-soft">
+                <span className="flex-none text-ink-soft">
                   {dateFormatter.format(new Date(entry.created_at))}
                 </span>
               </Link>

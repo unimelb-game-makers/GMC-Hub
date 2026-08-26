@@ -111,8 +111,8 @@ export function AttendanceSearch({
                   href={`/events/${event.id}?tab=attendance`}
                   className="flex items-center justify-between gap-3 rounded-lg border border-line bg-surface p-3 text-sm transition-colors hover:border-accent/40"
                 >
-                  <span className="font-medium">{event.title}</span>
-                  <span className="text-ink-soft">
+                  <span className="min-w-0 truncate font-medium">{event.title}</span>
+                  <span className="flex-none text-ink-soft">
                     {event.count} checked in
                   </span>
                 </Link>

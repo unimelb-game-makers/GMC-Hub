@@ -15,8 +15,10 @@ export function StatBar({
   return (
     <div>
       <div className="flex items-center justify-between gap-2 text-sm">
-        <span className={accent ? "font-medium text-accent" : "font-medium"}>{label}</span>
-        <span className="font-mono text-xs text-ink-soft">
+        <span className={`min-w-0 truncate ${accent ? "font-medium text-accent" : "font-medium"}`}>
+          {label}
+        </span>
+        <span className="flex-none font-mono text-xs text-ink-soft">
           {count} · {pct.toFixed(0)}%
         </span>
       </div>
