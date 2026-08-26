@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { parseStudentNumberRequired, parseCourse, normalizeName } from "@/lib/attendance-validation";
+import {
+  parseStudentNumberRequired,
+  parseCourse,
+  parseFoundVia,
+  normalizeName,
+} from "@/lib/attendance-validation";
 
 // No requireAppUser() anywhere in this file: this is the public, no-sign-in
 // self-check-in flow reached by scanning an event's QR code. To keep the
@@ -131,9 +136,14 @@ export async function publicSelfCheckIn(eventId: string, formData: FormData): Pr
   const notAStudent = !!formData.get("not_a_student");
   let studentNumber: string | null;
   let course: string | null;
+  let foundVia, foundViaOtherDetails;
   try {
     studentNumber = parseStudentNumberRequired(formData.get("student_number"), notAStudent);
     course = parseCourse(formData.get("course"));
+    ({ foundVia, foundViaOtherDetails } = parseFoundVia(
+      formData.get("found_via"),
+      formData.get("found_via_other_details")
+    ));
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Invalid input" };
   }
@@ -182,6 +192,8 @@ export async function publicSelfCheckIn(eventId: string, formData: FormData): Pr
   const { error } = await admin.from("attendance_entries").insert({
     event_id: eventId,
     member_id: memberId,
+    found_via: foundVia,
+    found_via_other_details: foundViaOtherDetails,
   });
   if (error) {
     if (error.code === "23505") {

@@ -4,6 +4,10 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { SubmitButton } from "@/components/submit-button";
 import { Checkbox } from "@/components/checkbox";
+import { FoundViaSelect } from "@/components/found-via-select";
+import { EVENT_DISCOVERY_SOURCE_LABELS } from "@/lib/format";
+import type { EventDiscoverySource } from "@/lib/types";
+import type { AttendanceActionResult } from "@/app/attendance/actions";
 
 const inputClass =
   "rounded-md border border-line bg-bg px-3 py-2 text-sm font-normal placeholder:text-ink-soft/60";
@@ -16,6 +20,8 @@ export interface AttendanceEntryRow {
   studentNumber: string | null;
   course: string | null;
   isClubMember: boolean;
+  foundVia: EventDiscoverySource | null;
+  foundViaOtherDetails: string | null;
   createdAt: string;
   checkedInByName: string;
 }
@@ -48,8 +54,8 @@ export function AttendanceList({
 }: {
   entries: AttendanceEntryRow[];
   members: AttendanceMemberOption[];
-  onCheckInExisting: (memberId: string) => Promise<void>;
-  onAddNew: (formData: FormData) => Promise<void>;
+  onCheckInExisting: (memberId: string, formData: FormData) => Promise<AttendanceActionResult>;
+  onAddNew: (formData: FormData) => Promise<AttendanceActionResult>;
   onRemove: (entryId: string) => Promise<void>;
   exportHref: string;
   canExport: boolean;
@@ -59,6 +65,8 @@ export function AttendanceList({
   const [notAStudent, setNotAStudent] = useState(false);
   const [course, setCourse] = useState("");
   const [isClubMember, setIsClubMember] = useState(false);
+  const [foundVia, setFoundVia] = useState<EventDiscoverySource | "">("");
+  const [foundViaOtherDetails, setFoundViaOtherDetails] = useState("");
   const [listQuery, setListQuery] = useState("");
   const [pending, setPending] = useState(false);
   const [checkInError, setCheckInError] = useState<string | null>(null);
@@ -90,18 +98,31 @@ export function AttendanceList({
     setNotAStudent(false);
     setCourse("");
     setIsClubMember(false);
+    setFoundVia("");
+    setFoundViaOtherDetails("");
     setCheckInError(null);
     setAddError(null);
+  };
+
+  const buildFoundViaFormData = () => {
+    const fd = new FormData();
+    fd.set("found_via", foundVia);
+    if (foundVia === "other") fd.set("found_via_other_details", foundViaOtherDetails);
+    return fd;
   };
 
   const handleCheckIn = async (memberId: string) => {
     setPending(true);
     setCheckInError(null);
     try {
-      await onCheckInExisting(memberId);
-      reset();
-    } catch (err) {
-      setCheckInError(err instanceof Error ? err.message : "Couldn't check them in");
+      const result = await onCheckInExisting(memberId, buildFoundViaFormData());
+      if (result.ok) {
+        reset();
+      } else {
+        setCheckInError(result.error);
+      }
+    } catch {
+      setCheckInError("Couldn't check them in");
     } finally {
       setPending(false);
     }
@@ -111,16 +132,20 @@ export function AttendanceList({
     setPending(true);
     setAddError(null);
     try {
-      const formData = new FormData();
+      const formData = buildFoundViaFormData();
       formData.set("full_name", nameQuery.trim());
       formData.set("student_number", idQuery.trim());
       if (notAStudent) formData.set("not_a_student", "on");
       formData.set("course", course.trim());
       if (isClubMember) formData.set("is_club_member", "on");
-      await onAddNew(formData);
-      reset();
-    } catch (err) {
-      setAddError(err instanceof Error ? err.message : "Couldn't add them");
+      const result = await onAddNew(formData);
+      if (result.ok) {
+        reset();
+      } else {
+        setAddError(result.error);
+      }
+    } catch {
+      setAddError("Couldn't add them");
     } finally {
       setPending(false);
     }
@@ -130,7 +155,8 @@ export function AttendanceList({
   // Blank only counts as valid once "Not a student" is explicitly ticked,
   // so a forgotten ID can't be silently mistaken for "not a student".
   const idValid = notAStudent ? idQuery.trim() === "" : idQuery.trim().length === 7;
-  const canSubmitAdd = noMatches && nameQuery.trim() !== "" && idValid;
+  const foundViaValid = foundVia !== "" && (foundVia !== "other" || foundViaOtherDetails.trim() !== "");
+  const canSubmitAdd = noMatches && nameQuery.trim() !== "" && idValid && foundViaValid;
 
   const listQueryTrimmed = listQuery.trim().toLowerCase();
   const shown = listQueryTrimmed
@@ -185,12 +211,22 @@ export function AttendanceList({
             <button
               type="button"
               onClick={() => matches.length === 1 && handleCheckIn(matches[0].id)}
-              disabled={pending || matches.length !== 1}
+              disabled={pending || matches.length !== 1 || !foundViaValid}
               className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60 sm:mt-6"
             >
               Check in
             </button>
           )}
+        </div>
+
+        <div className="mt-2">
+          <FoundViaSelect
+            value={foundVia}
+            onChange={setFoundVia}
+            otherDetails={foundViaOtherDetails}
+            onOtherDetailsChange={setFoundViaOtherDetails}
+            disabled={pending}
+          />
         </div>
 
         {hasQuery && matches.length > 1 && (
@@ -207,8 +243,8 @@ export function AttendanceList({
                 <button
                   type="button"
                   onClick={() => handleCheckIn(m.id)}
-                  disabled={pending}
-                  className="flex w-full flex-wrap items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-bg"
+                  disabled={pending || !foundViaValid}
+                  className="flex w-full flex-wrap items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-bg disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <span className="font-medium">{m.fullName}</span>
                   <span className="font-mono text-ink-soft">
@@ -260,7 +296,7 @@ export function AttendanceList({
             {!canSubmitAdd && (
               <p className="text-xs text-ink-soft">
                 Name is required. Fill in the student ID (7 digits), or tick &quot;Not a
-                student&quot;.
+                student&quot;. Select where they found this event, above.
               </p>
             )}
             {addError && <p className={errorClass}>{addError}</p>}
@@ -296,21 +332,30 @@ export function AttendanceList({
         {shown.map((entry) => (
           <li
             key={entry.id}
-            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line bg-surface p-3 text-sm"
+            className="flex flex-col gap-2 rounded-lg border border-line bg-surface p-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-1"
           >
-            <Link
-              href={`/attendance/students/${entry.memberId}`}
-              className="font-medium underline decoration-ink-soft/40 underline-offset-4 transition-colors hover:text-accent hover:decoration-accent"
-            >
-              {entry.fullName}
-            </Link>
-            <span className="font-mono text-ink-soft">
-              {entry.studentNumber ?? "N/A"}
-            </span>
-            {entry.course && <span className="text-ink-soft">{entry.course}</span>}
-            <MemberBadge isClubMember={entry.isClubMember} />
-            <div className="ml-auto flex items-center gap-2">
-              <span className="text-xs text-ink-soft">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <Link
+                href={`/attendance/students/${entry.memberId}`}
+                className="font-medium underline decoration-ink-soft/40 underline-offset-4 transition-colors hover:text-accent hover:decoration-accent"
+              >
+                {entry.fullName}
+              </Link>
+              <span className="font-mono text-ink-soft">
+                {entry.studentNumber ?? "N/A"}
+              </span>
+              {entry.course && <span className="text-ink-soft">{entry.course}</span>}
+              <MemberBadge isClubMember={entry.isClubMember} />
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+              {entry.foundVia && (
+                <span className="rounded-full border border-line px-1.5 py-0.5 text-[10px] text-ink-soft">
+                  {entry.foundVia === "other" && entry.foundViaOtherDetails
+                    ? entry.foundViaOtherDetails
+                    : EVENT_DISCOVERY_SOURCE_LABELS[entry.foundVia]}
+                </span>
+              )}
+              <span className="ml-auto text-xs text-ink-soft sm:ml-0">
                 Checked in by {entry.checkedInByName}
               </span>
               <form action={onRemove.bind(null, entry.id)}>

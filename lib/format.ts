@@ -2,6 +2,7 @@ import {
   ROLES,
   type BankDetails,
   type Category,
+  type EventDiscoverySource,
   type EventType,
   type RequestStatus,
   type Role,
@@ -40,6 +41,16 @@ export const EVENT_TYPE_LABELS: Record<EventType, string> = {
   function: "Function",
   camp: "Camp",
   excursion: "Excursion",
+  other: "Other",
+};
+
+export const EVENT_DISCOVERY_SOURCE_LABELS: Record<EventDiscoverySource, string> = {
+  discord: "Discord",
+  instagram: "Instagram",
+  newsletter: "Newsletter",
+  another_club: "Another club",
+  umsu_website: "UMSU website",
+  friend: "A friend",
   other: "Other",
 };
 

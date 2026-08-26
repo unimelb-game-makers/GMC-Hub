@@ -53,6 +53,30 @@ export function parseStudentNumberRequired(
   return value;
 }
 
+import { EVENT_DISCOVERY_SOURCES, type EventDiscoverySource } from "@/lib/types";
+
+// Required on every check-in (new or returning attendee), for the
+// committee's own outreach tracking. Free-text details are only required
+// (and only stored) when "other" is picked, same pattern as an event's own
+// event_type_other_details.
+export function parseFoundVia(
+  raw: FormDataEntryValue | null,
+  otherRaw: FormDataEntryValue | null
+): { foundVia: EventDiscoverySource; foundViaOtherDetails: string | null } {
+  const value = String(raw ?? "").trim();
+  if (!(EVENT_DISCOVERY_SOURCES as readonly string[]).includes(value)) {
+    throw new Error("Select how you heard about this event");
+  }
+  const foundVia = value as EventDiscoverySource;
+  if (foundVia !== "other") return { foundVia, foundViaOtherDetails: null };
+
+  const foundViaOtherDetails = String(otherRaw ?? "").trim();
+  if (!foundViaOtherDetails) {
+    throw new Error('Details are required when "Other" is selected');
+  }
+  return { foundVia, foundViaOtherDetails };
+}
+
 // Used to match a returning attendee by name when they don't have a
 // student number handy: case and spacing are the only things people are
 // inconsistent about when re-typing their own name, so those are the only

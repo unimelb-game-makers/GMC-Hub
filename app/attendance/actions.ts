@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { requireAppUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { parseStudentNumber, parseStudentNumberRequired, parseCourse } from "@/lib/attendance-validation";
+import {
+  parseStudentNumber,
+  parseStudentNumberRequired,
+  parseCourse,
+  parseFoundVia,
+} from "@/lib/attendance-validation";
 
 function revalidateAttendance(eventId: string) {
   revalidatePath(`/events/${eventId}`);
@@ -11,25 +16,48 @@ function revalidateAttendance(eventId: string) {
   revalidatePath("/");
 }
 
+export type AttendanceActionResult = { ok: true } | { ok: false; error: string };
+
 // Checks in a student already on the roster from a prior event, found via
-// the search-and-select box, so their details aren't re-entered.
-export async function checkInMember(eventId: string, memberId: string) {
+// the search-and-select box, so their details aren't re-entered. Returns a
+// result instead of throwing: Next.js redacts a thrown Error's message to a
+// generic placeholder once it crosses back to the client in a production
+// build (this doesn't show up in `next dev`), so returning it as ordinary
+// data is what actually gets the real message in front of the user.
+export async function checkInMember(
+  eventId: string,
+  memberId: string,
+  formData: FormData
+): Promise<AttendanceActionResult> {
   const user = await requireAppUser();
+
+  let foundVia, foundViaOtherDetails;
+  try {
+    ({ foundVia, foundViaOtherDetails } = parseFoundVia(
+      formData.get("found_via"),
+      formData.get("found_via_other_details")
+    ));
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Invalid input" };
+  }
 
   const admin = createAdminClient();
   const { error } = await admin.from("attendance_entries").insert({
     event_id: eventId,
     member_id: memberId,
     checked_in_by: user.id,
+    found_via: foundVia,
+    found_via_other_details: foundViaOtherDetails,
   });
   if (error) {
     if (error.code === "23505") {
-      throw new Error("Already checked in to this event");
+      return { ok: false, error: "Already checked in to this event" };
     }
-    throw new Error(error.message);
+    return { ok: false, error: error.message };
   }
 
   revalidateAttendance(eventId);
+  return { ok: true };
 }
 
 // Only reached when the search box found no existing match: adds a new
@@ -37,14 +65,23 @@ export async function checkInMember(eventId: string, memberId: string) {
 export async function addNewMemberAndCheckIn(
   eventId: string,
   formData: FormData
-) {
+): Promise<AttendanceActionResult> {
   const user = await requireAppUser();
 
   const fullName = String(formData.get("full_name") ?? "").trim();
-  if (!fullName) throw new Error("Name is required");
-  const notAStudent = !!formData.get("not_a_student");
-  const studentNumber = parseStudentNumberRequired(formData.get("student_number"), notAStudent);
-  const course = parseCourse(formData.get("course"));
+  if (!fullName) return { ok: false, error: "Name is required" };
+  let studentNumber, course, foundVia, foundViaOtherDetails;
+  try {
+    const notAStudent = !!formData.get("not_a_student");
+    studentNumber = parseStudentNumberRequired(formData.get("student_number"), notAStudent);
+    course = parseCourse(formData.get("course"));
+    ({ foundVia, foundViaOtherDetails } = parseFoundVia(
+      formData.get("found_via"),
+      formData.get("found_via_other_details")
+    ));
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Invalid input" };
+  }
   const isClubMember = !!formData.get("is_club_member");
 
   const admin = createAdminClient();
@@ -60,21 +97,25 @@ export async function addNewMemberAndCheckIn(
     .single();
   if (memberError) {
     if (memberError.code === "23505") {
-      throw new Error(
-        "That student ID is already on the roster. Search for their name instead."
-      );
+      return {
+        ok: false,
+        error: "That student ID is already on the roster. Search for their name instead.",
+      };
     }
-    throw new Error(memberError.message);
+    return { ok: false, error: memberError.message };
   }
 
   const { error } = await admin.from("attendance_entries").insert({
     event_id: eventId,
     member_id: member.id,
     checked_in_by: user.id,
+    found_via: foundVia,
+    found_via_other_details: foundViaOtherDetails,
   });
-  if (error) throw new Error(error.message);
+  if (error) return { ok: false, error: error.message };
 
   revalidateAttendance(eventId);
+  return { ok: true };
 }
 
 export async function removeAttendanceEntry(eventId: string, entryId: string) {

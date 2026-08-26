@@ -54,6 +54,19 @@ export interface BankDetails {
 export const EVENT_TYPES = ["function", "camp", "excursion", "other"] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
+// How an attendee heard about the event, captured per check-in for the
+// committee's own outreach tracking.
+export const EVENT_DISCOVERY_SOURCES = [
+  "discord",
+  "instagram",
+  "newsletter",
+  "another_club",
+  "umsu_website",
+  "friend",
+  "other",
+] as const;
+export type EventDiscoverySource = (typeof EVENT_DISCOVERY_SOURCES)[number];
+
 // startsAt/venue/eventTypes are required for new events (UMSU attendance
 // CSV export needs them) but nullable/empty on events created before this
 // existed — those can be edited to backfill them if the committee wants to
@@ -126,6 +139,8 @@ export interface AttendanceEntry {
   eventId: string;
   memberId: string;
   checkedInBy: string;
+  foundVia: EventDiscoverySource | null;
+  foundViaOtherDetails: string | null;
   createdAt: string;
 }
 

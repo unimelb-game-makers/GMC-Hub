@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { PendingButton } from "@/components/pending-button";
 import { Checkbox } from "@/components/checkbox";
+import { FoundViaSelect } from "@/components/found-via-select";
 import type { MatchedMember, CheckMatchResult, CheckInResult } from "@/app/checkin/[eventId]/actions";
+import type { EventDiscoverySource } from "@/lib/types";
 
 const inputClass =
   "rounded-md border border-line bg-bg px-3 py-2 text-sm font-normal placeholder:text-ink-soft/60";
@@ -25,9 +27,12 @@ export function SelfCheckinForm({
   const [notAStudent, setNotAStudent] = useState(false);
   const [course, setCourse] = useState("");
   const [isClubMember, setIsClubMember] = useState(false);
+  const [foundVia, setFoundVia] = useState<EventDiscoverySource | "">("");
+  const [foundViaOtherDetails, setFoundViaOtherDetails] = useState("");
   const [match, setMatch] = useState<MatchedMember | null>(null);
 
   const idValid = notAStudent ? studentNumber === "" : studentNumber.length === 7;
+  const foundViaValid = foundVia !== "" && (foundVia !== "other" || foundViaOtherDetails.trim() !== "");
 
   const buildFormData = (confirmedMemberId?: string) => {
     const fd = new FormData();
@@ -36,6 +41,8 @@ export function SelfCheckinForm({
     if (notAStudent) fd.set("not_a_student", "on");
     fd.set("course", course);
     if (isClubMember) fd.set("is_club_member", "on");
+    fd.set("found_via", foundVia);
+    if (foundVia === "other") fd.set("found_via_other_details", foundViaOtherDetails);
     if (confirmedMemberId) fd.set("confirmed_member_id", confirmedMemberId);
     return fd;
   };
@@ -199,10 +206,17 @@ export function SelfCheckinForm({
         I&apos;m a club member
       </label>
 
+      <FoundViaSelect
+        value={foundVia}
+        onChange={setFoundVia}
+        otherDetails={foundViaOtherDetails}
+        onOtherDetailsChange={setFoundViaOtherDetails}
+      />
+
       {error && <p className="text-sm text-[#f0a3a3]">{error}</p>}
       <PendingButton
         pending={pending}
-        disabled={!idValid}
+        disabled={!idValid || !foundViaValid}
         className="self-start rounded-md bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover"
       >
         Check in
