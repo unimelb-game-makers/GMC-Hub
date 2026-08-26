@@ -5,7 +5,6 @@ import Link from "next/link";
 import { SubmitButton } from "@/components/submit-button";
 import { Checkbox } from "@/components/checkbox";
 import { FoundViaSelect } from "@/components/found-via-select";
-import { EVENT_DISCOVERY_SOURCE_LABELS } from "@/lib/format";
 import type { EventDiscoverySource } from "@/lib/types";
 import type { AttendanceActionResult } from "@/app/attendance/actions";
 
@@ -344,17 +343,9 @@ export function AttendanceList({
               <span className="font-mono text-ink-soft">
                 {entry.studentNumber ?? "N/A"}
               </span>
-              {entry.course && <span className="text-ink-soft">{entry.course}</span>}
               <MemberBadge isClubMember={entry.isClubMember} />
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-              {entry.foundVia && (
-                <span className="rounded-full border border-line px-1.5 py-0.5 text-[10px] text-ink-soft">
-                  {entry.foundVia === "other" && entry.foundViaOtherDetails
-                    ? entry.foundViaOtherDetails
-                    : EVENT_DISCOVERY_SOURCE_LABELS[entry.foundVia]}
-                </span>
-              )}
               <span className="ml-auto text-xs text-ink-soft sm:ml-0">
                 Checked in by {entry.checkedInByName}
               </span>

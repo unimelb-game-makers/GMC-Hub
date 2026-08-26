@@ -76,12 +76,20 @@ export default async function AttendancePage() {
           <h1 className="font-display text-xl font-semibold tracking-tight">
             Attendance
           </h1>
-          <Link
-            href="/attendance/students"
-            className="text-sm text-accent underline-offset-2 hover:underline"
-          >
-            All students
-          </Link>
+          <div className="flex gap-4">
+            <Link
+              href="/attendance/stats"
+              className="text-sm text-accent underline-offset-2 hover:underline"
+            >
+              Stats
+            </Link>
+            <Link
+              href="/attendance/students"
+              className="text-sm text-accent underline-offset-2 hover:underline"
+            >
+              All students
+            </Link>
+          </div>
         </div>
         <p className="mt-1 text-sm text-ink-soft">
           Pick an event to check people in, or search across every event at

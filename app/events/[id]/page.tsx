@@ -8,11 +8,13 @@ import { StatusBadge } from "@/components/status-badge";
 import { EventHeader } from "@/components/event-header";
 import { EventDetailTabs } from "@/components/event-detail-tabs";
 import { AttendanceSharePanel } from "@/components/attendance-share-panel";
+import { AttendanceStatsPanel } from "@/components/attendance-stats-panel";
 import {
   AttendanceList,
   type AttendanceEntryRow,
   type AttendanceMemberOption,
 } from "@/components/attendance-list";
+import { computeAttendanceStats } from "@/lib/attendance-stats";
 import { formatAUD, CATEGORY_LABELS } from "@/lib/format";
 import {
   REQUEST_STATUSES,
@@ -154,6 +156,7 @@ export default async function EventDetailPage({
   }));
 
   const canManage = hasRole(user, "exec") || hasRole(user, "payment_manager");
+  const stats = computeAttendanceStats(attendanceEntries);
 
   // No self-check-in link without a public URL to build it from (unset in
   // local dev, per .env.example, where nothing external can reach it
@@ -204,7 +207,7 @@ export default async function EventDetailPage({
         />
 
         <EventDetailTabs
-          defaultTab={tab === "attendance" ? "attendance" : "requests"}
+          defaultTab={tab === "attendance" ? "attendance" : tab === "stats" ? "stats" : "requests"}
           requestsLabel={`Requests (${requests.length})`}
           attendanceLabel={`Attendance (${attendanceEntries.length})`}
           requests={
@@ -292,6 +295,17 @@ export default async function EventDetailPage({
               canExport={!!event.starts_at && !!event.venue && event.event_types.length > 0}
             />
             </>
+          }
+          stats={
+            <div className="mt-4">
+              <AttendanceStatsPanel stats={stats} />
+              <Link
+                href="/attendance/stats"
+                className="mt-4 inline-block text-sm text-accent underline-offset-2 hover:underline"
+              >
+                View stats for all events →
+              </Link>
+            </div>
           }
         />
       </main>
