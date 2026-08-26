@@ -145,7 +145,7 @@ export default async function RequestPage({
           <p className="mt-3 text-sm">{request.description}</p>
         )}
 
-        <dl className={`mt-4 flex gap-8 text-sm ${cardClass}`}>
+        <dl className={`mt-4 flex flex-wrap gap-x-8 gap-y-4 text-sm ${cardClass}`}>
           <div>
             <dt className="text-ink-soft">Estimated</dt>
             <dd className="font-mono font-medium">
@@ -166,7 +166,7 @@ export default async function RequestPage({
               {receipts.length > 0 ? (
                 <ul className="flex flex-col gap-1">
                   {receipts.map((receipt, i) => (
-                    <li key={i} className="flex items-center gap-3">
+                    <li key={i} className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       <span className="max-w-[10rem] truncate text-xs text-ink-soft">
                         {receipt.name}
                       </span>

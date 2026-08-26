@@ -30,10 +30,12 @@ export function VoteTally({
         return (
           <div key={option.id} className="rounded-lg border border-line bg-surface p-3">
             <div className="flex items-center justify-between gap-2 text-sm">
-              <span className={isWinner ? "font-semibold text-accent" : "font-medium"}>
+              <span
+                className={`min-w-0 truncate ${isWinner ? "font-semibold text-accent" : "font-medium"}`}
+              >
                 {option.label}
               </span>
-              <span className="flex items-center gap-2">
+              <span className="flex flex-none items-center gap-2">
                 {allowMultipleChoices && result.totalVoters > 0 && (
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${

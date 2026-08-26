@@ -201,11 +201,11 @@ export default async function ElectionDetailPage({
             {voters.map((v) => (
               <li
                 key={v.email}
-                className="flex items-center justify-between rounded-md border border-line bg-surface px-3 py-2 text-sm"
+                className="flex items-center justify-between gap-2 rounded-md border border-line bg-surface px-3 py-2 text-sm"
               >
-                <span>{v.email}</span>
+                <span className="min-w-0 truncate">{v.email}</span>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                  className={`flex-none rounded-full px-2 py-0.5 text-xs font-medium ${
                     v.voted_at ? "bg-[#26402f] text-[#8fd6ac]" : "bg-line text-ink-soft"
                   }`}
                 >
