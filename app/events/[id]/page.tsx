@@ -14,7 +14,13 @@ import {
   type AttendanceMemberOption,
 } from "@/components/attendance-list";
 import { formatAUD, CATEGORY_LABELS } from "@/lib/format";
-import { REQUEST_STATUSES, type Category, type EventType, type RequestStatus } from "@/lib/types";
+import {
+  REQUEST_STATUSES,
+  type Category,
+  type EventDiscoverySource,
+  type EventType,
+  type RequestStatus,
+} from "@/lib/types";
 import { setEventOpen, updateEvent, deleteEvent } from "../actions";
 import {
   checkInMember,
@@ -58,6 +64,8 @@ interface AttendanceRow {
     is_club_member: boolean;
   } | null;
   checked_in_by_user: { display_name: string } | null;
+  found_via: EventDiscoverySource | null;
+  found_via_other_details: string | null;
 }
 
 interface MemberRow {
@@ -106,7 +114,7 @@ export default async function EventDetailPage({
       supabase
         .from("attendance_entries")
         .select(
-          "id, member_id, created_at, member:attendance_members!attendance_entries_member_id_fkey (full_name, student_number, course, is_club_member), checked_in_by_user:app_users!attendance_entries_checked_in_by_fkey (display_name)"
+          "id, member_id, created_at, found_via, found_via_other_details, member:attendance_members!attendance_entries_member_id_fkey (full_name, student_number, course, is_club_member), checked_in_by_user:app_users!attendance_entries_checked_in_by_fkey (display_name)"
         )
         .eq("event_id", id)
         .order("created_at", { ascending: false }),
@@ -128,6 +136,8 @@ export default async function EventDetailPage({
     studentNumber: a.member?.student_number ?? null,
     course: a.member?.course ?? null,
     isClubMember: a.member?.is_club_member ?? false,
+    foundVia: a.found_via,
+    foundViaOtherDetails: a.found_via_other_details,
     createdAt: a.created_at,
     // Null checked_in_by is how a self check-in (the public /checkin link,
     // no signed-in staff member involved) is represented, not a data gap.
