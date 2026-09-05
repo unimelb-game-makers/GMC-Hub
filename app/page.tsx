@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { RequestStatus } from "@/lib/types";
 import { Nav } from "@/components/nav";
 import { HomeEventsTabs, type HomeEventSummary } from "@/components/home-events-tabs";
+import { HelpNudge } from "@/components/help-nudge";
 import { voteStatus, canVote } from "@/lib/voting";
 import type { Role } from "@/lib/types";
 
@@ -108,6 +109,8 @@ export default async function HubHome() {
         <p className="mt-1 text-sm text-ink-soft">
           All GMC committee essentials.
         </p>
+
+        <HelpNudge />
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <Link
