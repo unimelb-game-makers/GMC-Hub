@@ -14,6 +14,7 @@ import {
 import type { EventType } from "@/lib/types";
 
 const dateFormatter = new Intl.DateTimeFormat("en-AU", {
+  timeZone: "Australia/Melbourne",
   day: "numeric",
   month: "short",
   year: "numeric",

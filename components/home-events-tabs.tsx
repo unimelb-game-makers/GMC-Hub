@@ -13,6 +13,7 @@ export interface HomeEventSummary {
 }
 
 const dateFormatter = new Intl.DateTimeFormat("en-AU", {
+  timeZone: "Australia/Melbourne",
   day: "numeric",
   month: "short",
   year: "numeric",
