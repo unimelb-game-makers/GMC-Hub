@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { formatMelbourne } from "@/lib/timezone";
 import { requireAppUser, hasRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -429,7 +430,7 @@ export default async function RequestPage({
                       : `Submitted (${STATUS_LABELS[entry.to_status]})`}
                   </span>
                   <span className="font-mono text-xs text-ink-soft/70">
-                    {new Date(entry.created_at).toLocaleString("en-AU")}
+                    {formatMelbourne(entry.created_at)}
                   </span>
                   {detail && (
                     <details className="w-full text-ink-soft">

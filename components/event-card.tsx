@@ -16,6 +16,7 @@ import {
 import { REQUEST_STATUSES, type EventType, type RequestStatus } from "@/lib/types";
 
 const dateFormatter = new Intl.DateTimeFormat("en-AU", {
+  timeZone: "Australia/Melbourne",
   day: "numeric",
   month: "short",
   year: "numeric",

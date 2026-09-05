@@ -80,6 +80,7 @@ interface MemberRow {
 
 const cardClass = "rounded-lg border border-line bg-surface p-4";
 const dateFormatter = new Intl.DateTimeFormat("en-AU", {
+  timeZone: "Australia/Melbourne",
   day: "numeric",
   month: "short",
   year: "numeric",

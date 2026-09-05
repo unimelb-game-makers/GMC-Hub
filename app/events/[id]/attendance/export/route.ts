@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAppUser, hasRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatEventDate, formatEventTime, formatEventTypes } from "@/lib/format";
+import { formatMelbourne } from "@/lib/timezone";
 import type { EventType } from "@/lib/types";
 
 const CLUB_NAME = "Game Makers' Club";
@@ -114,7 +115,7 @@ export async function GET(
         e.member?.full_name ?? "unknown",
         e.member?.student_number ?? "N/A",
         e.member?.course ?? "",
-        new Date(e.created_at).toLocaleString("en-AU"),
+        formatMelbourne(e.created_at),
         e.member?.is_club_member ? "Yes" : "No",
       ])
     ),
