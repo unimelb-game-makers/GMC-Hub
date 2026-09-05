@@ -5,6 +5,7 @@ const LINKS = [
   { href: "/events", label: "Events" },
   { href: "/attendance", label: "Attendance" },
   { href: "/voting", label: "Voting" },
+  { href: "/help", label: "Help" },
 ];
 
 export function NavLinks({ stacked = false }: { stacked?: boolean }) {
